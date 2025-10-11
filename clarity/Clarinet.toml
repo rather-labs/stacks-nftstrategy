@@ -1,0 +1,40 @@
+[project]
+name = "nftstrategy"
+description = ""
+authors = []
+telemetry = false
+cache_dir = "./.cache"
+
+[[project.requirements]]
+contract_id = "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE.sip-010-trait-ft-standard"
+
+[contracts.strategy-token]
+path = "contracts/strategy-token.clar"
+epoch = "latest"
+
+# [contracts.nft-strategy]
+# path = "contracts/nft-strategy.clar"
+# epoch = "latest"
+
+[contracts.liquidity-pool]
+path = "contracts/liquidity-pool.clar"
+epoch = "latest"
+
+# [contracts.trait-sip009]
+# path = "contracts/traits/sip009-nft-trait.clar"
+# epoch = "latest"
+
+# [contracts.trait-bitflow-router]
+# path = "contracts/traits/bitflow-router-trait.clar"
+# epoch = "latest"
+
+[repl.analysis]
+passes = []
+
+# Check-checker settings:
+# trusted_sender: if true, inputs are trusted after tx_sender has been checked.
+# trusted_caller: if true, inputs are trusted after contract-caller has been checked.
+# callee_filter: if true, untrusted data may be passed into a private function without a
+# warning, if it gets checked inside. This check will also propagate up to the
+# caller.
+# More informations: https://www.hiro.so/blog/new-safety-checks-in-clarinet
