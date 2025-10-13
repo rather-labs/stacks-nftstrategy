@@ -1,6 +1,6 @@
 ;; liquidity-pool.clar
-;; Minimal XYK pool for STX <-> RATHER swaps (no protocol fees here).
-;; Token-level fee-on-transfer in RATHER should enforce strategy treasury accrual.
+;; Minimal XYK pool for STX <-> RATHER swaps (only strategy protocol fees here).
+;; Strategie accrues fees through add-fees function.
 
 (define-constant ERR_NOT_OWNER (err u100))
 (define-constant ERR_ALREADY_INIT (err u101))
@@ -9,6 +9,8 @@
 (define-constant ERR_BAD_INPUT (err u104))
 (define-constant ERR_MIN_OUT (err u105))
 (define-constant ERR_INSUFF_LIQ (err u106))
+
+(define-constant rather-fee u1000) ;; 10% fee on transfer in RATHER expressed in bps.
 
 (define-data-var owner principal tx-sender)
 (define-data-var initialized bool false)
@@ -54,10 +56,13 @@
   (begin
     (asserts! (var-get initialized) ERR_NOT_INIT)
     (asserts! (> amount-in u0)      ERR_BAD_INPUT)
-    (let ((r-stx (var-get reserve-stx))
-          (r-r   (var-get reserve-rather)))
+    (let (
+        (r-stx (var-get reserve-stx))
+        (r-r   (var-get reserve-rather))
+        (net-amount-in (/ (* amount-in (- u10000 rather-fee)) u10000))
+      )
       (asserts! (and (> r-stx u0) (> r-r u0)) ERR_NOT_INIT)
-      (ok (/ (* amount-in r-r) (+ r-stx amount-in)))
+      (ok (/ (* net-amount-in r-r) (+ r-stx net-amount-in)))
     )
   )
 )
@@ -72,7 +77,9 @@
         (self  (as-contract tx-sender))                        ;; contract principal
         (r-stx (var-get reserve-stx))
         (r-r   (var-get reserve-rather))
-        (out   (/ (* amount-in r-r) (+ r-stx amount-in)))      ;; XYK, no fee
+        (net-amount-in (/ (* amount-in (- u10000 rather-fee)) u10000))
+        (out   (/ (* net-amount-in r-r) (+ r-stx net-amount-in)))      ;; XYK, no fee
+        (collected-fee (- amount-in net-amount-in)) ;; fee portion in STX
       )
 
       (asserts! (and (> r-stx u0) (> r-r u0)) ERR_NOT_INIT)
@@ -80,16 +87,25 @@
       (asserts! (<= out r-r) ERR_INSUFF_LIQ)
 
       ;; 1) pull STX in (caller -> contract)
-      (try! (stx-transfer? amount-in recipient self))
+      (try! (stx-transfer? net-amount-in recipient self))
 
       ;; 2) send RATHER out (contract -> tx-sender)
       (try! (as-contract (contract-call? .strategy-token transfer out self recipient none)))
 
-      ;; 3) update reserves only after both transfers succeed
-      (var-set reserve-stx    (+ r-stx amount-in))
+      ;; 3) send collected fee to strategy contract
+      (try! (as-contract (contract-call? .strategy-token add-fees collected-fee))) ;; Liquidity pool is the only allowed caller
+
+      ;; 4) update reserves only after both transfers succeed
+      (var-set reserve-stx    (+ r-stx net-amount-in))
       (var-set reserve-rather (- r-r   out))
 
-      (print {event: "swap", stxIn: amount-in, ratherOut: out, to: recipient})
+      (print {
+        event: "swap",
+        stxIn: net-amount-in,
+        ratherOut: out,
+        collectedFeeInStx: collected-fee,
+        to: recipient
+      })
       (ok out)
     )
   )
@@ -103,7 +119,11 @@
     (let ((r-stx (var-get reserve-stx))
           (r-r   (var-get reserve-rather)))
       (asserts! (and (> r-stx u0) (> r-r u0)) ERR_NOT_INIT)
-      (ok (/ (* amount-in r-stx) (+ r-r amount-in)))
+      (let (
+        (out (/ (* amount-in r-stx) (+ r-r amount-in)))
+        (fee (/ (* out rather-fee) u10000)))
+        (ok (- out fee))
+      )
     )
   )
 )
@@ -118,24 +138,35 @@
         (self  (as-contract tx-sender))                        ;; contract principal
         (r-stx (var-get reserve-stx))
         (r-r   (var-get reserve-rather))
-        (out   (/ (* amount-in r-stx) (+ r-r amount-in)))      ;; XYK, no fee
+        (net-out   (/ (* amount-in r-stx) (+ r-r amount-in)))      ;; XYK, no fee
+        (collected-fee (/ (* net-out rather-fee) u10000))
+        (out (- net-out collected-fee))
       )
 
       (asserts! (and (> r-stx u0) (> r-r u0)) ERR_NOT_INIT)
       (asserts! (>= out min-out) ERR_MIN_OUT)
-      (asserts! (<= out r-stx) ERR_INSUFF_LIQ)
+      (asserts! (<= net-out r-stx) ERR_INSUFF_LIQ) ;; check liquidity for out
 
       ;; 1) pull RATHER in (tx-sender -> contract)
       (try! (contract-call? .strategy-token transfer amount-in recipient self none))
 
-      ;; ;; 2) send STX out (contract -> tx-sender)
+      ;; 2) send STX out (contract -> tx-sender)
       (try! (as-contract (stx-transfer? out self recipient)))
 
-      ;; 3) update reserves only after both transfers succeed
-      (var-set reserve-rather (+ r-r amount-in))
-      (var-set reserve-stx (- r-stx out))
+      ;; 3) send collected fee to strategy contract
+      (try! (as-contract (contract-call? .strategy-token add-fees collected-fee))) ;; Liquidity pool is the only allowed caller
 
-      (print {event: "swap", ratherIn: amount-in, stxOut: out, to: recipient})
+      ;; 4) update reserves only after both transfers succeed
+      (var-set reserve-rather (+ r-r amount-in))
+      (var-set reserve-stx (- r-stx net-out))
+
+      (print {
+        event: "swap",
+        ratherIn: amount-in,
+        stxOut: out,
+        collectedFeeInStx: collected-fee,
+        to: recipient
+      })
       (ok out)
     )
   )

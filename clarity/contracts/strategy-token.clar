@@ -8,7 +8,7 @@
 ;; 2) Define the token using Clarity's native FT (no pre-mint)
 (define-fungible-token rather-coin)
 ;; Total supply that will be minted once to the pool
-(define-constant TOTAL_SUPPLY u1000000)
+(define-constant TOTAL_SUPPLY u1000000000000)
 
 ;; 3) Metadata
 (define-constant TOKEN-NAME "RatherCoin")
@@ -16,16 +16,22 @@
 (define-constant TOKEN-DECIMALS u6)
 
 ;; 4) Errors & owner
-(define-constant ERR_OWNER_ONLY (err u100))
-(define-constant ERR_NOT_TOKEN_OWNER (err u101))
-(define-constant ERR_INSUFFICIENT_BAL (err u102))
-(define-constant ERR_BAD_AMOUNT (err u103))
-(define-constant ERR_BAD_RECIPIENT (err u104))
-(define-constant ERR_ALREADY_BOOTSTRAPPED (err u105))
+(define-constant ERR_OWNER_ONLY (err u200))
+(define-constant ERR_NOT_TOKEN_OWNER (err u201))
+(define-constant ERR_INSUFFICIENT_BAL (err u202))
+(define-constant ERR_BAD_AMOUNT (err u203))
+(define-constant ERR_BAD_RECIPIENT (err u204))
+(define-constant ERR_ALREADY_BOOTSTRAPPED (err u205))
+(define-constant ERR_LP_ONLY (err u206))
 
 (define-constant CONTRACT_OWNER tx-sender)
 ;; One-time bootstrap flag
 (define-data-var bootstrapped bool false)
+
+;; Fee balance (in RATHER) collected from swaps
+(define-data-var fee-balance uint u0)
+
+(define-public (get-fee-balance) (ok (var-get fee-balance)))
 
 ;; 5) Required SIP-010 entrypoints
 
@@ -55,28 +61,11 @@
 
 ;; bootstrap-once flow is enforced via mint's guards (see above)
 
-;; Mint new tokens and send them to a recipient.
-;; Only the contract deployer can perform this operation.
-;; (define-public (mint (amount uint) (recipient principal))
-;;   (begin
-;;   ;; (asserts! (is-eq tx-sender CONTRACT_OWNER) ERR_OWNER_ONLY)
-;;   ;; (asserts! (not (var-get bootstrapped)) ERR_ALREADY_BOOTSTRAPPED)
-;;   ;; (asserts! (is-eq amount TOTAL_SUPPLY) ERR_BAD_AMOUNT)
-;;   (asserts! (is-eq recipient .liquidity-pool) ERR_BAD_AMOUNT)
-;;   (try! (ft-mint? rather-coin amount recipient))
-;;   (var-set bootstrapped true)
-;;   (ok true)
-;;   )
-;; )
-
-
-(define-public (mint (amount uint) (recipient principal))
+(define-public (mint)
   (begin
-  ;; (asserts! (is-eq tx-sender CONTRACT_OWNER) ERR_OWNER_ONLY)
-  ;; (asserts! (not (var-get bootstrapped)) ERR_ALREADY_BOOTSTRAPPED)
-  ;; (asserts! (is-eq amount TOTAL_SUPPLY) ERR_BAD_AMOUNT)
-  ;; (asserts! (is-eq recipient .liquidity-pool) ERR_BAD_RECIPIENT)
-  (try! (ft-mint? rather-coin amount recipient))
+  (asserts! (is-eq tx-sender CONTRACT_OWNER) ERR_OWNER_ONLY)
+  (asserts! (not (var-get bootstrapped)) ERR_ALREADY_BOOTSTRAPPED)
+  (try! (ft-mint? rather-coin TOTAL_SUPPLY .liquidity-pool))
   (var-set bootstrapped true)
   (ok true)
   )
@@ -86,4 +75,16 @@
   (let ((self (as-contract tx-sender)))
   (asserts! (is-eq tx-sender CONTRACT_OWNER) ERR_OWNER_ONLY)
     (ft-burn? rather-coin amount self))
+)
+
+(define-public (add-fees (amount uint))
+  (begin
+    (asserts! (is-eq tx-sender .liquidity-pool) ERR_LP_ONLY)
+    (asserts! (> amount u0) ERR_BAD_AMOUNT)
+    (let ((self (as-contract tx-sender)))
+      (try! (stx-transfer? amount tx-sender self))
+      (var-set fee-balance (+ (var-get fee-balance) amount))
+      (ok true)
+    )
+  )
 )
