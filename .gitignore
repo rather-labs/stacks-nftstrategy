@@ -1,0 +1,6 @@
+node_modules
+.turbo/
+
+clarity/.turbo/
+clarity/.debug_history
+clarity/.cache/
