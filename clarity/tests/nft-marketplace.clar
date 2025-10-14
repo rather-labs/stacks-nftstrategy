@@ -28,3 +28,9 @@
 ;; Fulfill the listing (buy the NFT)
 ::set_tx_sender ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5
 (contract-call? ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.nft-marketplace fulfill-listing-stx u0 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.funny-dog)
+
+;; Mint new NFT, list it cheaper and check floor price is updated
+(contract-call? .nft-marketplace get-floor-price 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.funny-dog) ;; should be u100000
+(contract-call? .funny-dog mint 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM)
+(contract-call? .nft-marketplace list-asset 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.funny-dog { token-id: u2, price: u90000 })
+(contract-call? .nft-marketplace get-floor-price 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.funny-dog) ;; should be u90000
