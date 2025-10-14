@@ -16,7 +16,7 @@
 (define-constant ERR_SOLD_OUT (err u300))
 (define-constant ERR_INTERNAL (err u500))
 
-(define-data-var base-uri (string-ascii 80) "https://placedog.net/500/500?id={id}")
+(define-data-var base-uri (string-ascii 80) "https://placedog.net/500/500?id=")
 
 ;; SIP-009 function: Get the last minted token ID.
 (define-read-only (get-last-token-id)
@@ -25,7 +25,7 @@
 
 ;; SIP-009 function: Get link where token metadata is hosted
 (define-read-only (get-token-uri (token-id uint))
-  (ok (some (var-get base-uri)))
+  (ok (some (concat (var-get base-uri) (int-to-ascii token-id))))
 )
 
 ;; SIP-009 function: Get the owner of a given token
