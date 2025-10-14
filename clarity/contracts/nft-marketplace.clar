@@ -29,6 +29,11 @@
 ;; Used for unique IDs for each listing
 (define-data-var listing-nonce uint u0)
 
+;; Public function to get the current listing nonce
+(define-read-only (get-listing-nonce)
+  (ok (var-get listing-nonce))
+)
+
 ;; Internal function to transfer an NFT asset from a sender to a given recipient.
 (define-private (transfer-nft
     (token-contract <nft-trait>)
