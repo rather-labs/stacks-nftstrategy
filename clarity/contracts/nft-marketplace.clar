@@ -122,7 +122,7 @@
 )
 
 ;; Public function to purchase a listing using STX as payment
-(define-public (fulfil-listing-stx
+(define-public (fulfill-listing-stx
     (listing-id uint)
     (nft-asset-contract <nft-trait>)
   )
