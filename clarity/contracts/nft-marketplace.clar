@@ -101,7 +101,7 @@
 )
 
 ;; Private function to validate that a purchase can be fulfilled
-(define-private (assert-can-fulfil
+(define-private (assert-can-fulfill
     (nft-asset-contract principal)
     (listing {
       maker: principal,
@@ -133,7 +133,7 @@
       (taker tx-sender)
     )
     ;; Validate that the purchase can be fulfilled
-    (try! (assert-can-fulfil (contract-of nft-asset-contract) listing))
+    (try! (assert-can-fulfill (contract-of nft-asset-contract) listing))
     ;; Transfer the NFT to the purchaser (caller of the function)
     (try! (as-contract (transfer-nft nft-asset-contract (get token-id listing) tx-sender taker)))
     ;; Transfer the STX payment from the purchaser to the creator of the NFT
