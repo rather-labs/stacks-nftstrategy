@@ -2,6 +2,8 @@
 ;; Minimal XYK pool for STX <-> RATHER swaps (only strategy protocol fees here).
 ;; Strategie accrues fees through add-fees function.
 
+(impl-trait .liquidity-pool-trait.liquidity-pool-trait)
+
 (define-constant ERR_NOT_OWNER (err u100))
 (define-constant ERR_ALREADY_INIT (err u101))
 (define-constant ERR_NOT_INIT (err u102))
@@ -87,7 +89,7 @@
       (asserts! (<= out r-r) ERR_INSUFF_LIQ)
 
       ;; 1) pull STX in (caller -> contract)
-      (try! (stx-transfer? net-amount-in recipient self))
+      (try! (stx-transfer? amount-in recipient self))
 
       ;; 2) send RATHER out (contract -> tx-sender)
       (try! (as-contract (contract-call? .strategy-token transfer out self recipient none)))
