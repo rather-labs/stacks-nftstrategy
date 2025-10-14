@@ -19,10 +19,13 @@ epoch = "latest"
 path = "contracts/liquidity-pool.clar"
 epoch = "latest"
 
-[contracts.trait-sip009]
+[contracts.funny-dog]
 path = "contracts/funny-dog.clar"
 epoch = "latest"
 
+[contracts.nft-marketplace]
+path = 'contracts/nft-marketplace.clar'
+epoch = "latest"
 
 [repl.analysis]
 passes = []
