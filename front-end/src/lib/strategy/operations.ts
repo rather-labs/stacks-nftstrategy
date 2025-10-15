@@ -65,6 +65,19 @@ export const buildBuyTokenAndBurnTx = (network: Network): ContractCallRegularOpt
   };
 };
 
+export const buildMintStrategyTokenTx = (network: Network): ContractCallRegularOptions => {
+  const strategyContract = getStrategyContract(network);
+
+  return {
+    anchorMode: AnchorMode.Any,
+    postConditionMode: PostConditionMode.Deny,
+    ...strategyContract,
+    network,
+    functionName: 'mint',
+    functionArgs: [],
+  };
+};
+
 export const fetchStrategyFeeBalance = async (network: Network): Promise<number> => {
   const api = getApi(network).smartContractsApi;
   const strategyContract = getStrategyContract(network);

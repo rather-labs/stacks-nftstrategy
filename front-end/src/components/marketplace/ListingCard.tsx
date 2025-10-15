@@ -27,7 +27,7 @@ import { getPlaceholderImage } from '@/utils/nft-utils';
 import { useNetwork } from '@/lib/use-network';
 import { useCurrentAddress } from '@/hooks/useCurrentAddress';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
-import { getExplorerLink } from '@/utils/explorer-links';
+import { getAccountExplorerLink, getExplorerLink } from '@/utils/explorer-links';
 
 interface ListingCardProps {
   listing: {
@@ -39,6 +39,9 @@ interface ListingCardProps {
   };
   onRefresh: () => void;
 }
+
+const truncateAddress = (address: string): string =>
+  address.length > 10 ? `${address.slice(0, 6)}...${address.slice(-4)}` : address;
 
 export const ListingCard = ({ listing, onRefresh }: ListingCardProps) => {
   const { testnetAddress, mainnetAddress } = useContext(HiroWalletContext);
@@ -180,14 +183,24 @@ export const ListingCard = ({ listing, onRefresh }: ListingCardProps) => {
           <Text fontSize="sm" color="gray.500">
             {formatContractName(listing.nftAssetContract)}
           </Text>
-          <Flex justify="space-between" align="center">
+          <Stack spacing={1}>
             <Text color="orange.500" fontWeight="bold">
               {listing.price / 1000000} STX
             </Text>
-            <Text fontSize="xs" color="gray.400">
-              By {listing.maker.slice(0, 6)}...
-            </Text>
-          </Flex>
+            <Flex align="center" justify="space-between" fontSize="xs" color="gray.500">
+              <Text>Owner</Text>
+              <Link
+                href={getAccountExplorerLink(listing.maker, network)}
+                isExternal
+                color="blue.500"
+                display="inline-flex"
+                alignItems="center"
+                gap={1}
+              >
+                {truncateAddress(listing.maker)} <ExternalLinkIcon />
+              </Link>
+            </Flex>
+          </Stack>
         </Stack>
       </CardBody>
       <CardFooter pt={0} px={4} pb={4}>

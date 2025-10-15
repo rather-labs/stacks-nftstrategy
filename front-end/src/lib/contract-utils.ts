@@ -8,6 +8,8 @@ import {
   ClarityValue,
   PostCondition,
   PostConditionMode,
+  makeSTXTokenTransfer,
+  SignedTokenTransferOptions,
 } from '@stacks/transactions';
 import { generateWallet } from '@stacks/wallet-sdk';
 import { DevnetWallet } from './devnet-wallet-context';
@@ -47,6 +49,47 @@ export const executeContractCall = async (
   const response = await broadcastTransaction({
     transaction,
     network: contractCallTxOptions.network,
+  });
+
+  if ('error' in response) {
+    throw new Error(response.error || 'Transaction failed');
+  }
+
+  return { txid: response.txid };
+};
+
+interface DirectStxTransferOptions {
+  recipient: string;
+  amount: number;
+  memo?: string;
+}
+
+export const executeStxTransfer = async (
+  transfer: DirectStxTransferOptions,
+  currentWallet: DevnetWallet | null
+): Promise<DirectCallResponse> => {
+  const mnemonic = currentWallet?.mnemonic;
+  if (!mnemonic) throw new Error('Devnet wallet not configured');
+
+  const wallet = await generateWallet({
+    secretKey: mnemonic,
+    password: 'password',
+  });
+
+  const tokenTransferOptions: SignedTokenTransferOptions = {
+    recipient: transfer.recipient,
+    amount: BigInt(transfer.amount),
+    memo: transfer.memo,
+    senderKey: wallet.accounts[0].stxPrivateKey,
+    network: DEVNET_NETWORK,
+    fee: 1000,
+  };
+
+  const transaction = await makeSTXTokenTransfer(tokenTransferOptions);
+
+  const response = await broadcastTransaction({
+    transaction,
+    network: tokenTransferOptions.network,
   });
 
   if ('error' in response) {
