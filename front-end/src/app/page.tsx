@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -48,10 +48,12 @@ import {
   buildMintStrategyTokenTx,
   SoldNft,
 } from '@/lib/strategy/operations';
+import { fetchStrategyMinted } from '@/lib/strategy/mint-status';
 import {
   buildSwapRatherForStxTx,
   buildSwapStxForRatherTx,
   buildInitLiquidityPoolTx,
+  buildUpdateReservesTx,
   calculateMinOut,
   fetchPoolReserves,
   fetchQuoteRatherForStx,
@@ -111,8 +113,11 @@ export default function StrategyDashboard() {
   const [pendingSendTxId, setPendingSendTxId] = useState<string | null>(null);
   const [isMinting, setIsMinting] = useState(false);
   const [pendingMintTxId, setPendingMintTxId] = useState<string | null>(null);
+  const [hasMintedTokens, setHasMintedTokens] = useState(false);
   const [isInitializingPool, setIsInitializingPool] = useState(false);
   const [pendingInitTxId, setPendingInitTxId] = useState<string | null>(null);
+  const [isUpdatingReserves, setIsUpdatingReserves] = useState(false);
+  const [pendingUpdateTxId, setPendingUpdateTxId] = useState<string | null>(null);
 
   const strategyPrincipal = useMemo(
     () => (network ? getStrategyPrincipal(network) : ''),
@@ -142,6 +147,17 @@ export default function StrategyDashboard() {
     queryFn: () => (network ? fetchSoldNfts(network) : Promise.resolve([])),
     enabled: !!network,
     refetchInterval: 30000,
+  });
+
+  const {
+    data: mintedOnChain = false,
+    isLoading: mintStatusLoading,
+    refetch: refetchMintStatus,
+  } = useQuery({
+    queryKey: ['strategy-mint-status', network],
+    queryFn: () => (network ? fetchStrategyMinted(network) : Promise.resolve(false)),
+    enabled: !!network,
+    refetchInterval: 20000,
   });
 
   const {
@@ -182,32 +198,22 @@ export default function StrategyDashboard() {
     refetchInterval: 20000,
   });
 
-  const effectiveMinOut = useMemo(() => {
-    if (quote <= 0) return 0;
-    const computed = calculateMinOut(quote, slippageBps);
-    return Math.max(computed, 1);
-  }, [quote, slippageBps]);
-
   const inputTokenLabel = swapDirection === 'stx-to-rather' ? 'STX' : 'RATHER';
   const outputTokenLabel = swapDirection === 'stx-to-rather' ? 'RATHER' : 'STX';
   const formattedReserves = poolReserves ? formatPoolReserves(poolReserves) : null;
   const poolInitialized = poolReserves?.initialized ?? false;
   const estimatedOutput = quote / MICROSTX_IN_STX;
-  const minimumOutput = effectiveMinOut / MICROSTX_IN_STX;
+  console.log('quote = ', quote);
   const swapButtonLabel =
     swapDirection === 'stx-to-rather' ? 'Swap STX for RATHER' : 'Swap RATHER for STX';
   const isSwapDisabled =
-    !currentAddress ||
-    !poolInitialized ||
-    amountIn <= 0 ||
-    quote <= 0 ||
-    effectiveMinOut <= 0 ||
-    isSwapping;
+    !currentAddress || !poolInitialized || amountIn <= 0 || quote <= 0 || isSwapping;
   const slippageLabel = slippagePercent.toFixed(1);
   const sendAmountMicro = useMemo(() => toMicroAmount(sendAmount), [sendAmount]);
   const isSendDisabled = !currentAddress || sendAmountMicro <= 0 || !sendRecipient || isSendingStx;
-  const isMintDisabled = !currentAddress || isMinting;
+  const isMintDisabled = !currentAddress || isMinting || hasMintedTokens || mintStatusLoading;
   const isInitDisabled = !currentAddress || isInitializingPool || poolInitialized;
+  const isUpdateReservesDisabled = !currentAddress || isUpdatingReserves;
 
   const handleDirectionChange = useCallback((direction: SwapDirection) => {
     setSwapDirection(direction);
@@ -223,10 +229,31 @@ export default function StrategyDashboard() {
     void refetchMetrics();
     void refetchSold();
     void refetchPool();
+    void refetchMintStatus();
     if (strategyPrincipal) {
       void refetchHoldings();
     }
-  }, [refetchMetrics, refetchSold, refetchPool, refetchHoldings, strategyPrincipal]);
+  }, [
+    refetchMetrics,
+    refetchSold,
+    refetchPool,
+    refetchMintStatus,
+    refetchHoldings,
+    strategyPrincipal,
+  ]);
+
+  useEffect(() => {
+    if (mintedOnChain) {
+      setHasMintedTokens(true);
+    } else if (!mintStatusLoading && !pendingMintTxId) {
+      setHasMintedTokens(false);
+    }
+  }, [mintedOnChain, mintStatusLoading, pendingMintTxId]);
+
+  useEffect(() => {
+    setPendingMintTxId(null);
+    setHasMintedTokens(false);
+  }, [strategyPrincipal]);
 
   const handleSwap = useCallback(async () => {
     if (!network) return;
@@ -248,7 +275,7 @@ export default function StrategyDashboard() {
       return;
     }
 
-    if (amountIn <= 0 || quote <= 0 || effectiveMinOut <= 0) {
+    if (amountIn <= 0 || quote <= 0) {
       toast({
         title: 'Invalid amount',
         description: 'Enter a valid amount to receive a quote before swapping.',
@@ -262,8 +289,8 @@ export default function StrategyDashboard() {
 
     const txOptions =
       swapDirection === 'stx-to-rather'
-        ? buildSwapStxForRatherTx(network, currentAddress, amountIn, effectiveMinOut)
-        : buildSwapRatherForStxTx(network, currentAddress, amountIn, effectiveMinOut);
+        ? buildSwapStxForRatherTx(network, currentAddress, amountIn, quote)
+        : buildSwapRatherForStxTx(network, currentAddress, amountIn, quote);
 
     try {
       if (shouldUseDirectCall()) {
@@ -318,7 +345,6 @@ export default function StrategyDashboard() {
     poolInitialized,
     amountIn,
     quote,
-    effectiveMinOut,
     swapDirection,
     currentWallet,
     toast,
@@ -452,6 +478,8 @@ export default function StrategyDashboard() {
           description: `Broadcast strategy mint transaction ${txid}`,
           status: 'info',
         });
+        setHasMintedTokens(true);
+        void refetchMintStatus();
         refreshAll();
         return;
       }
@@ -465,6 +493,8 @@ export default function StrategyDashboard() {
             description: 'Mint transaction submitted to the Stacks network.',
             status: 'success',
           });
+          setHasMintedTokens(true);
+          void refetchMintStatus();
           refreshAll();
         },
         onCancel: () => {
@@ -485,7 +515,15 @@ export default function StrategyDashboard() {
     } finally {
       setIsMinting(false);
     }
-  }, [network, currentAddress, shouldUseDirectCall, currentWallet, toast, refreshAll]);
+  }, [
+    network,
+    currentAddress,
+    shouldUseDirectCall,
+    currentWallet,
+    toast,
+    refreshAll,
+    refetchMintStatus,
+  ]);
 
   const handleInitPool = useCallback(async () => {
     if (!network) return;
@@ -567,6 +605,70 @@ export default function StrategyDashboard() {
     toast,
     refreshAll,
   ]);
+
+  const handleUpdateReserves = useCallback(async () => {
+    if (!network) return;
+
+    if (!currentAddress) {
+      toast({
+        title: 'Connect wallet',
+        description: 'Please connect a wallet before updating reserves.',
+        status: 'warning',
+      });
+      return;
+    }
+
+    setIsUpdatingReserves(true);
+    setPendingUpdateTxId(null);
+
+    const txOptions = buildUpdateReservesTx(network);
+
+    try {
+      if (shouldUseDirectCall()) {
+        if (!currentWallet) {
+          throw new Error('Devnet wallet is not configured');
+        }
+        const { txid } = await executeContractCall(txOptions, currentWallet);
+        setPendingUpdateTxId(txid);
+        toast({
+          title: 'Update submitted',
+          description: `Broadcast reserve update transaction ${txid}`,
+          status: 'info',
+        });
+        refreshAll();
+        return;
+      }
+
+      await openContractCall({
+        ...txOptions,
+        onFinish: ({ txId }) => {
+          setPendingUpdateTxId(txId);
+          toast({
+            title: 'Update submitted',
+            description: 'Reserve update submitted to the Stacks network.',
+            status: 'success',
+          });
+          refreshAll();
+        },
+        onCancel: () => {
+          toast({
+            title: 'Transaction cancelled',
+            description: 'You cancelled the reserve update.',
+            status: 'info',
+          });
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error',
+      });
+    } finally {
+      setIsUpdatingReserves(false);
+    }
+  }, [network, currentAddress, shouldUseDirectCall, currentWallet, toast, refreshAll]);
 
   const handleBuyFloor = useCallback(async () => {
     if (!network || !metrics?.floorListing) {
@@ -916,28 +1018,12 @@ export default function StrategyDashboard() {
                 </Text>
               </FormControl>
 
-              <FormControl>
-                <FormLabel>Slippage tolerance ({slippageLabel}%)</FormLabel>
-                <Slider
-                  min={0.1}
-                  max={5}
-                  step={0.1}
-                  value={slippagePercent}
-                  onChange={setSlippagePercent}
-                >
-                  <SliderTrack>
-                    <SliderFilledTrack />
-                  </SliderTrack>
-                  <SliderThumb />
-                </Slider>
-              </FormControl>
-
               <Box>
                 {quoteLoading ? (
                   <HStack spacing={2}>
                     <Spinner size="sm" />
                     <Text fontSize="sm" color="gray.600">
-                      Fetching quote…
+                      Fetching quote...
                     </Text>
                   </HStack>
                 ) : amountIn > 0 && quote > 0 ? (
@@ -946,12 +1032,6 @@ export default function StrategyDashboard() {
                       Estimated output:{' '}
                       <Text as="span" fontWeight="semibold">
                         {estimatedOutput.toFixed(6)} {outputTokenLabel}
-                      </Text>
-                    </Text>
-                    <Text fontSize="sm" color="gray.600">
-                      Minimum received ({slippageLabel}% slippage):{' '}
-                      <Text as="span" fontWeight="semibold">
-                        {minimumOutput.toFixed(6)} {outputTokenLabel}
                       </Text>
                     </Text>
                     <Text fontSize="xs" color="gray.500">
@@ -1075,6 +1155,15 @@ export default function StrategyDashboard() {
                   >
                     Init Liquidity Pool
                   </Button>
+                  <Button
+                    colorScheme="orange"
+                    variant="outline"
+                    onClick={handleUpdateReserves}
+                    isDisabled={isUpdateReservesDisabled}
+                    isLoading={isUpdatingReserves}
+                  >
+                    Update Reserves
+                  </Button>
                 </Stack>
                 {pendingMintTxId && (
                   <Link
@@ -1094,6 +1183,16 @@ export default function StrategyDashboard() {
                     isExternal
                   >
                     View init transaction <ExternalLinkIcon mx="4px" />
+                  </Link>
+                )}
+                {pendingUpdateTxId && (
+                  <Link
+                    fontSize="sm"
+                    color="blue.500"
+                    href={getExplorerLink(pendingUpdateTxId, network)}
+                    isExternal
+                  >
+                    View update transaction <ExternalLinkIcon mx="4px" />
                   </Link>
                 )}
                 {poolInitialized && (

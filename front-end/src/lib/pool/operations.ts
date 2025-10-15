@@ -234,6 +234,18 @@ export const buildInitLiquidityPoolTx = (network: Network): ContractCallRegularO
   };
 };
 
+export const buildUpdateReservesTx = (network: Network): ContractCallRegularOptions => {
+  const poolContract = getLiquidityPoolContract(network);
+
+  return {
+    ...baseCall,
+    ...poolContract,
+    network,
+    functionName: 'update-reserves',
+    functionArgs: [],
+  };
+};
+
 export const formatMicroAmount = (value: number) => value / MICROSTX_IN_STX;
 
 export const toMicroAmount = (value: string, decimals = MICROSTX_IN_STX): number => {

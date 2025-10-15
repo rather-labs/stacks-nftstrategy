@@ -61,7 +61,7 @@ plan:
         - contract-publish:
             contract-name: liquidity-pool
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 56980
+            cost: 62040
             path: contracts/liquidity-pool.clar
             anchor-block-only: true
             clarity-version: 3
