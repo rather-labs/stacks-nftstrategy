@@ -27,6 +27,9 @@ export interface PoolReserves {
   initialized: boolean;
 }
 
+const RATHER_FEE_BPS = 1000;
+const FEE_DENOMINATOR = 10000;
+
 const baseCall = {
   anchorMode: AnchorMode.Any,
   postConditionMode: PostConditionMode.Deny,
@@ -149,6 +152,11 @@ const buildPostConditions = (
   const poolPrincipal = `${poolContract.contractAddress}.${poolContract.contractName}`;
 
   if (direction === 'stx-to-rather') {
+    const netAmountIn = Math.floor(
+      (amountIn * (FEE_DENOMINATOR - RATHER_FEE_BPS)) / FEE_DENOMINATOR
+    );
+    const feeAmount = Math.max(0, amountIn - netAmountIn);
+
     return [
       {
         type: 'stx-postcondition',
@@ -162,6 +170,12 @@ const buildPostConditions = (
         condition: 'gte',
         asset: ratherAssetId,
         amount: minOut,
+      },
+      {
+        type: 'stx-postcondition',
+        address: poolPrincipal,
+        condition: 'eq',
+        amount: feeAmount,
       },
     ];
   }
