@@ -67,8 +67,7 @@ export const NftCard = ({ nft }: NftCardProps) => {
         nftContractAddress: contractAddress,
         nftContractName: contractName,
         tokenId: tokenId,
-        price: Number(+price * 1000000),
-        expiry: 1000000000,
+        price: Math.round(Number(price) * 1_000_000),
       });
 
       if (shouldUseDirectCall()) {

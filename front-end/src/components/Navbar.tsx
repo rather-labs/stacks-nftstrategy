@@ -52,7 +52,7 @@ export const Navbar = () => {
             </Flex>
             <Link href="/" textDecoration="none">
               <Box fontSize="lg" fontWeight="bold" color="gray.900" ml={4}>
-                NFT Marketplace
+                Strategy Dashboard
               </Box>
             </Link>
           </Flex>

@@ -3,9 +3,6 @@ import {
   PostConditionMode,
   uintCV,
   serializeCV,
-  principalCV,
-  someCV,
-  noneCV,
   contractPrincipalCV,
   tupleCV,
   cvToValue,
@@ -32,8 +29,6 @@ export interface ListAssetParams {
   nftContractName: string;
   tokenId: number;
   price: number;
-  expiry: number;
-  intendedTaker?: string;
 }
 
 export const listAsset = (
@@ -44,9 +39,6 @@ export const listAsset = (
   const nftAsset = {
     'token-id': uintCV(params.tokenId),
     price: uintCV(params.price),
-    expiry: uintCV(params.expiry),
-    taker: params.intendedTaker ? someCV(principalCV(params.intendedTaker)) : noneCV(),
-    'payment-asset-contract': noneCV(),
   };
 
   const postCondition = Pc.principal(params.sender)
@@ -75,7 +67,7 @@ export const cancelListing = async (
   listing: Listing
 ): Promise<ContractCallRegularOptions> => {
   const marketplaceContract = getMarketplaceContract(network);
-  const { id: listingId, tokenId, nftAssetContract, maker } = listing;
+  const { id: listingId, tokenId, nftAssetContract } = listing;
   const [contractAddress, contractName] = nftAssetContract.split('.');
 
   //  Post condition to ensure NFT transfer from marketplace contract back to maker
@@ -106,7 +98,7 @@ export const purchaseListingStx = async (
   listing: Listing
 ): Promise<ContractCallRegularOptions> => {
   const marketplaceContract = getMarketplaceContract(network);
-  const { id, tokenId, price, nftAssetContract, maker } = listing;
+  const { id, tokenId, price, nftAssetContract } = listing;
   const [contractAddress, contractName] = nftAssetContract.split('.');
 
   // Post condition for STX transfer from marketplace to maker
@@ -123,7 +115,7 @@ export const purchaseListingStx = async (
     ...baseContractCall,
     ...marketplaceContract,
     network,
-    functionName: 'fulfil-listing-stx',
+    functionName: 'fulfill-listing-stx',
     functionArgs: [uintCV(id), contractToPrincipalCV(nftAssetContract)],
     postConditions: [stxCondition, nftCondition],
     postConditionMode: PostConditionMode.Deny,
@@ -133,12 +125,9 @@ export const purchaseListingStx = async (
 export interface Listing {
   id: number;
   maker: string;
-  taker: string | null;
   tokenId: number;
   nftAssetContract: string;
-  expiry: number;
   price: number;
-  paymentAssetContract: string | null;
 }
 
 export interface ReadOnlyResponse {
@@ -154,48 +143,42 @@ export const parseReadOnlyResponse = ({ result }: ReadOnlyResponse) => {
   return clarityValue;
 };
 
-const parseListing = (listingId: number, cv: ClarityValue): Listing | undefined => {
-  // If cv is of type "some", unwrap it to get the underlying tuple
-  if (cv.type === 'some') {
+export const parseListing = (listingId: number, cv: ClarityValue): Listing | undefined => {
+  if (cv.type === ClarityType.OptionalNone) {
+    return undefined;
+  }
+
+  if (cv.type === ClarityType.OptionalSome) {
     cv = cv.value;
   }
+
   if (cv.type !== ClarityType.Tuple) return undefined;
+
   const tuple = cv as TupleCV<{
-    id?: ClarityValue;
     maker: ClarityValue;
-    taker: ClarityValue;
     'token-id': ClarityValue;
     'nft-asset-contract': ClarityValue;
-    expiry: ClarityValue;
     price: ClarityValue;
-    'payment-asset-contract': ClarityValue;
   }>;
 
-  // const id = tuple.value.id ? Number(cvToString(tuple.value.id)) : Number(cvToString(tuple.value['token-id']));
   const maker = cvToString(tuple.value.maker);
-  const taker = cvToString(tuple.value.taker) === 'none' ? null : cvToString(tuple.value.taker);
   const tokenId = Number(cvToValue(tuple.value['token-id']));
   const nftAssetContract = cvToString(tuple.value['nft-asset-contract']);
-  const expiry = Number(cvToValue(tuple.value.expiry));
   const price = Number(cvToValue(tuple.value.price));
-  const paymentAssetContract =
-    cvToString(tuple.value['payment-asset-contract']) === 'none'
-      ? null
-      : cvToString(tuple.value['payment-asset-contract']);
 
   return {
     id: listingId,
     maker,
-    taker,
     tokenId,
     nftAssetContract,
-    expiry,
     price,
-    paymentAssetContract,
   };
 };
 
-const fetchListing = async (network: Network, listingId: number): Promise<Listing | undefined> => {
+export const fetchListingById = async (
+  network: Network,
+  listingId: number
+): Promise<Listing | undefined> => {
   const api = getApi(network).smartContractsApi;
   const marketplaceContract = getMarketplaceContract(network);
   try {
@@ -219,19 +202,43 @@ const fetchListing = async (network: Network, listingId: number): Promise<Listin
   }
 };
 
-export async function fetchListings(network: Network, maxId: number = 10): Promise<Listing[]> {
+export const fetchListingNonce = async (network: Network): Promise<number> => {
+  const api = getApi(network).smartContractsApi;
+  const marketplaceContract = getMarketplaceContract(network);
+
+  try {
+    const response = await api.callReadOnlyFunction({
+      ...marketplaceContract,
+      functionName: 'get-listing-nonce',
+      readOnlyFunctionArgs: {
+        sender: marketplaceContract.contractAddress,
+        arguments: [],
+      },
+    });
+
+    const clarityValue = parseReadOnlyResponse(response);
+    if (!clarityValue) return 0;
+    if (clarityValue.type !== ClarityType.ResponseOk) return 0;
+
+    return Number(cvToValue(clarityValue.value));
+  } catch (error) {
+    console.error('Error fetching listing nonce:', error);
+    return 0;
+  }
+};
+
+export async function fetchListings(network: Network, maxId?: number): Promise<Listing[]> {
+  const nonce = typeof maxId === 'number' ? maxId : await fetchListingNonce(network);
+  if (nonce <= 0) return [];
+
   const allListings: Listing[] = [];
   const batchSize = 4;
-
-  // Process in batches to avoid rate limiting
-  for (let i = 0; i < maxId; i += batchSize) {
-    const batchPromises = Array.from({ length: Math.min(batchSize, maxId - i) }, (_, index) =>
-      fetchListing(network, i + index)
+  for (let i = 0; i < nonce; i += batchSize) {
+    const batchPromises = Array.from({ length: Math.min(batchSize, nonce - i) }, (_, index) =>
+      fetchListingById(network, i + index)
     );
     const batchResults = await Promise.all(batchPromises);
-    allListings.push(
-      ...batchResults.filter((listing): listing is Listing => listing !== undefined)
-    );
+    allListings.push(...batchResults.filter((listing): listing is Listing => !!listing));
   }
 
   return allListings;

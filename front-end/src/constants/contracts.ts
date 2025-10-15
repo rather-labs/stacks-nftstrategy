@@ -1,48 +1,45 @@
 import { isDevnetEnvironment, isTestnetEnvironment } from '@/lib/use-network';
 import { Network } from '@/lib/network';
-export const getNftContractAddress = (network: Network) => {
+
+const DEVNET_FALLBACK = 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM';
+const TESTNET_DEPLOYER =
+  process.env.NEXT_PUBLIC_TESTNET_DEPLOYER || 'ST4FJN6KJS2HZ2D7YP0CS54VSM7WAPV93K1E4DQJ';
+const MAINNET_DEPLOYER =
+  process.env.NEXT_PUBLIC_MAINNET_DEPLOYER || 'SP30VANCWST2Y0RY3EYGJ4ZK6D22GJQRR7H5YD8J8';
+
+const getDeployerForNetwork = (network: Network) => {
   if (isDevnetEnvironment()) {
-    return (
-      process.env.NEXT_PUBLIC_DEPLOYER_ACCOUNT_ADDRESS ||
-      'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM'
-    );
+    return process.env.NEXT_PUBLIC_DEPLOYER_ACCOUNT_ADDRESS || DEVNET_FALLBACK;
   }
+
   if (isTestnetEnvironment(network)) {
-    // return 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM';
-    return 'ST2CEP848SACBBX7KHVC4TBZXBV0JH6SC0WF439NF';
+    return TESTNET_DEPLOYER;
   }
-  // Mainnet address
-  return 'SP30VANCWST2Y0RY3EYGJ4ZK6D22GJQRR7H5YD8J8';
+
+  return MAINNET_DEPLOYER;
 };
 
-export const getNftContract = (network: Network) => {
-  return {
-    contractAddress: getNftContractAddress(network),
-    contractName: 'funny-dog',
-  } as const;
+const buildContract = (network: Network, contractName: string) => {
+  const contractAddress = getDeployerForNetwork(network);
+  return { contractAddress, contractName } as const;
 };
 
-export const getMarketplaceContractAddress = (network: Network) => {
-  if (isDevnetEnvironment()) {
-    return (
-      process.env.NEXT_PUBLIC_DEPLOYER_ACCOUNT_ADDRESS ||
-      'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM'
-    );
-  }
-  if (isTestnetEnvironment(network)) {
-    return 'ST2CEP848SACBBX7KHVC4TBZXBV0JH6SC0WF439NF';
-  }
-  // Mainnet address
-  return 'SP30VANCWST2Y0RY3EYGJ4ZK6D22GJQRR7H5YD8J8';
+export const getNftContract = (network: Network) => buildContract(network, 'funny-dog');
+
+export const getMarketplaceContract = (network: Network) =>
+  buildContract(network, 'nft-marketplace');
+
+export const getStrategyContract = (network: Network) => buildContract(network, 'strategy-token');
+
+export const getLiquidityPoolContract = (network: Network) =>
+  buildContract(network, 'liquidity-pool');
+
+export const getStrategyPrincipal = (network: Network) => {
+  const { contractAddress, contractName } = getStrategyContract(network);
+  return `${contractAddress}.${contractName}`;
 };
 
-export const getMarketplaceContract = (network: Network) => {
-  const contractName = isDevnetEnvironment()
-    ? 'nft-marketplace'
-    : 'nft-marketplace-1';
+export const getNftContractAddress = (network: Network) => getNftContract(network).contractAddress;
 
-  return {
-    contractAddress: getMarketplaceContractAddress(network),
-    contractName,
-  } as const;
-};
+export const getMarketplaceContractAddress = (network: Network) =>
+  getMarketplaceContract(network).contractAddress;

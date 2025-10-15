@@ -33,12 +33,9 @@ interface ListingCardProps {
   listing: {
     id: number;
     maker: string;
-    taker: string | null;
     tokenId: number;
     nftAssetContract: string;
-    expiry: number;
     price: number;
-    paymentAssetContract: string | null;
   };
   onRefresh: () => void;
 }
