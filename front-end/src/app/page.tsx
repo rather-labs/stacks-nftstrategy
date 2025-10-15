@@ -40,7 +40,7 @@ import {
 } from '@chakra-ui/react';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { useQuery } from '@tanstack/react-query';
-import { openSTXTransfer } from '@stacks/connect';
+import { request } from '@stacks/connect';
 import { useNetwork } from '@/lib/use-network';
 import {
   buildBuyAndRelistTx,
@@ -537,7 +537,6 @@ export default function StrategyDashboard() {
 
     setIsSendingStx(true);
     setPendingSendTxId(null);
-
     try {
       if (shouldUseDirectCall()) {
         if (!currentWallet) {
@@ -561,29 +560,23 @@ export default function StrategyDashboard() {
         return;
       }
 
-      await openSTXTransfer({
-        network,
-        recipient: cleanedRecipient,
+      const response = await request('stx_transferStx', {
         amount: sendAmountMicro.toString(),
-        stxAddress: currentAddress,
-        onFinish: ({ txId }) => {
-          setPendingSendTxId(txId);
-          toast({
-            title: 'Transfer submitted',
-            description: 'STX transfer submitted to the Stacks network.',
-            status: 'success',
-          });
-          setSendAmount('');
-          refreshAll();
-        },
-        onCancel: () => {
-          toast({
-            title: 'Transfer cancelled',
-            description: 'You cancelled the STX transfer.',
-            status: 'info',
-          });
-        },
+        recipient: cleanedRecipient,
       });
+
+      // Handle successful response
+      if (response.txid) {
+        setPendingSendTxId(response.txid);
+        toast({
+          title: 'Transfer submitted',
+          description: 'STX transfer submitted to the Stacks network.',
+          status: 'success',
+        });
+        setSendAmount('');
+        setSendRecipient('');
+        refreshAll();
+      }
     } catch (error) {
       console.error(error);
       toast({
