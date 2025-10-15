@@ -57,8 +57,8 @@ export const Navbar = () => {
             </Link>
           </Flex>
           <Flex align="center" gap={4}>
-            <Link href="/my-nfts">
-              <Box>My NFTs</Box>
+            <Link href="/marketplace">
+              <Box>Marketplace</Box>
             </Link>
             <NetworkSelector />
             {isDevnetEnvironment() ? (

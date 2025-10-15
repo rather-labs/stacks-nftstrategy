@@ -79,7 +79,7 @@ export const NftCard = ({ nft }: NftCardProps) => {
           status: 'success',
           duration: 3000,
         });
-        router.push('/');
+        router.push('/marketplace');
         return;
       }
 
@@ -92,7 +92,7 @@ export const NftCard = ({ nft }: NftCardProps) => {
             status: 'success',
             duration: 3000,
           });
-          router.push('/');
+          router.push('/marketplace');
         },
         onCancel: () => {
           toast({

@@ -35,8 +35,6 @@ import {
   Text,
   useToast,
   VStack,
-  Wrap,
-  WrapItem,
 } from '@chakra-ui/react';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { useQuery } from '@tanstack/react-query';
@@ -50,7 +48,6 @@ import {
   buildMintStrategyTokenTx,
   SoldNft,
 } from '@/lib/strategy/operations';
-import { fetchListings, listAsset, Listing } from '@/lib/marketplace/operations';
 import {
   buildSwapRatherForStxTx,
   buildSwapStxForRatherTx,
@@ -72,11 +69,10 @@ import {
 } from '@/lib/contract-utils';
 import { useCurrentAddress } from '@/hooks/useCurrentAddress';
 import { useNftHoldings } from '@/hooks/useNftHoldings';
-import { getNftContract, getStrategyPrincipal } from '@/constants/contracts';
+import { getStrategyPrincipal } from '@/constants/contracts';
 import { formatValue } from '@/lib/clarity-utils';
 import { getPlaceholderImage } from '@/utils/nft-utils';
 import { getExplorerLink } from '@/utils/explorer-links';
-import { ListingCard } from '@/components/marketplace/ListingCard';
 
 const MICROSTX_IN_STX = 1_000_000;
 
@@ -117,10 +113,6 @@ export default function StrategyDashboard() {
   const [pendingMintTxId, setPendingMintTxId] = useState<string | null>(null);
   const [isInitializingPool, setIsInitializingPool] = useState(false);
   const [pendingInitTxId, setPendingInitTxId] = useState<string | null>(null);
-  const [listTokenId, setListTokenId] = useState('');
-  const [listPrice, setListPrice] = useState('');
-  const [isListing, setIsListing] = useState(false);
-  const [pendingListTxId, setPendingListTxId] = useState<string | null>(null);
 
   const strategyPrincipal = useMemo(
     () => (network ? getStrategyPrincipal(network) : ''),
@@ -157,23 +149,6 @@ export default function StrategyDashboard() {
     isLoading: holdingsLoading,
     refetch: refetchHoldings,
   } = useNftHoldings(strategyPrincipal);
-
-  const {
-    data: walletHoldingsData,
-    isLoading: walletHoldingsLoading,
-    refetch: refetchWalletHoldings,
-  } = useNftHoldings(currentAddress || '');
-
-  const {
-    data: marketplaceListings = [],
-    isLoading: listingsLoading,
-    refetch: refetchListings,
-  } = useQuery<Listing[]>({
-    queryKey: ['marketplace-listings', network],
-    queryFn: () => (network ? fetchListings(network) : Promise.resolve([])),
-    enabled: !!network,
-    refetchInterval: 20000,
-  });
 
   const {
     data: poolReserves,
@@ -233,32 +208,6 @@ export default function StrategyDashboard() {
   const isSendDisabled = !currentAddress || sendAmountMicro <= 0 || !sendRecipient || isSendingStx;
   const isMintDisabled = !currentAddress || isMinting;
   const isInitDisabled = !currentAddress || isInitializingPool || poolInitialized;
-  const listingPriceMicro = useMemo(() => toMicroAmount(listPrice), [listPrice]);
-  const listTokenIdNumber = useMemo(() => {
-    const parsed = Number(listTokenId);
-    return Number.isFinite(parsed) ? parsed : Number.NaN;
-  }, [listTokenId]);
-  const walletHoldings = walletHoldingsData?.results ?? [];
-  const nftContract = network ? getNftContract(network) : null;
-  const walletNftTokens = useMemo(() => {
-    if (!nftContract) return [] as number[];
-    const contractId = `${nftContract.contractAddress}.${nftContract.contractName}`;
-    const tokenIds = new Set<number>();
-    walletHoldings.forEach((holding) => {
-      if (!holding.asset_identifier.startsWith(`${contractId}::`)) return;
-      const tokenId = extractTokenId(holding.value);
-      if (tokenId !== null) {
-        tokenIds.add(tokenId);
-      }
-    });
-    return Array.from(tokenIds).sort((a, b) => a - b);
-  }, [walletHoldings, nftContract]);
-  const isListDisabled =
-    !currentAddress ||
-    !Number.isFinite(listTokenIdNumber) ||
-    listTokenIdNumber < 0 ||
-    listingPriceMicro <= 0 ||
-    isListing;
 
   const handleDirectionChange = useCallback((direction: SwapDirection) => {
     setSwapDirection(direction);
@@ -274,134 +223,10 @@ export default function StrategyDashboard() {
     void refetchMetrics();
     void refetchSold();
     void refetchPool();
-    void refetchListings();
     if (strategyPrincipal) {
       void refetchHoldings();
     }
-    if (currentAddress) {
-      void refetchWalletHoldings();
-    }
-  }, [
-    refetchMetrics,
-    refetchSold,
-    refetchPool,
-    refetchListings,
-    refetchHoldings,
-    refetchWalletHoldings,
-    strategyPrincipal,
-    currentAddress,
-  ]);
-
-  const handleCreateListing = useCallback(async () => {
-    if (!network) return;
-
-    if (!currentAddress) {
-      toast({
-        title: 'Connect wallet',
-        description: 'Please connect a wallet before listing NFTs.',
-        status: 'warning',
-      });
-      return;
-    }
-
-    if (!nftContract) {
-      toast({
-        title: 'NFT contract unavailable',
-        description: 'Unable to resolve NFT contract for the current network.',
-        status: 'error',
-      });
-      return;
-    }
-
-    if (!Number.isFinite(listTokenIdNumber) || listTokenIdNumber < 0) {
-      toast({
-        title: 'Invalid token',
-        description: 'Select a valid NFT token ID to list.',
-        status: 'warning',
-      });
-      return;
-    }
-
-    if (listingPriceMicro <= 0) {
-      toast({
-        title: 'Invalid price',
-        description: 'Enter a listing price greater than zero.',
-        status: 'warning',
-      });
-      return;
-    }
-
-    setIsListing(true);
-    setPendingListTxId(null);
-
-    const txOptions = listAsset(network, {
-      sender: currentAddress,
-      nftContractAddress: nftContract.contractAddress,
-      nftContractName: nftContract.contractName,
-      tokenId: listTokenIdNumber,
-      price: listingPriceMicro,
-    });
-
-    try {
-      if (shouldUseDirectCall()) {
-        if (!currentWallet) {
-          throw new Error('Devnet wallet is not configured');
-        }
-        const { txid } = await executeContractCall(txOptions, currentWallet);
-        setPendingListTxId(txid);
-        toast({
-          title: 'Listing submitted',
-          description: `Broadcast listing transaction ${txid}`,
-          status: 'info',
-        });
-        setListTokenId('');
-        setListPrice('');
-        refreshAll();
-        return;
-      }
-
-      await openContractCall({
-        ...txOptions,
-        onFinish: ({ txId }) => {
-          setPendingListTxId(txId);
-          toast({
-            title: 'Listing submitted',
-            description: 'NFT listed on the marketplace.',
-            status: 'success',
-          });
-          setListTokenId('');
-          setListPrice('');
-          refreshAll();
-        },
-        onCancel: () => {
-          toast({
-            title: 'Listing cancelled',
-            description: 'You cancelled the listing transaction.',
-            status: 'info',
-          });
-        },
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: 'Listing failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-      });
-    } finally {
-      setIsListing(false);
-    }
-  }, [
-    network,
-    currentAddress,
-    nftContract,
-    listTokenIdNumber,
-    listingPriceMicro,
-    shouldUseDirectCall,
-    currentWallet,
-    toast,
-    refreshAll,
-  ]);
+  }, [refetchMetrics, refetchSold, refetchPool, refetchHoldings, strategyPrincipal]);
 
   const handleSwap = useCallback(async () => {
     if (!network) return;
@@ -1280,138 +1105,6 @@ export default function StrategyDashboard() {
             </Stack>
           </CardBody>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <Flex justify="space-between" align="center">
-              <Stack spacing={2}>
-                <Heading size="md">Marketplace</Heading>
-                <Text fontSize="sm" color="gray.600">
-                  View all Funny Dog listings, list your holdings, and manage existing posts.
-                </Text>
-              </Stack>
-              <Badge colorScheme="purple">{marketplaceListings.length} listings</Badge>
-            </Flex>
-          </CardHeader>
-          <Divider />
-          <CardBody>
-            <Stack spacing={6}>
-              <Stack spacing={4}>
-                <Heading size="sm">List an NFT</Heading>
-                {!currentAddress ? (
-                  <Text fontSize="sm" color="gray.500">
-                    Connect a wallet to list your NFTs on the marketplace.
-                  </Text>
-                ) : (
-                  <Stack spacing={4}>
-                    <Box>
-                      <Text fontSize="sm" color="gray.600" mb={2}>
-                        Your Funny Dog NFTs
-                      </Text>
-                      {walletHoldingsLoading ? (
-                        <HStack spacing={2}>
-                          <Spinner size="sm" />
-                          <Text fontSize="sm" color="gray.600">
-                            Loading your holdings…
-                          </Text>
-                        </HStack>
-                      ) : walletNftTokens.length === 0 ? (
-                        <Text fontSize="sm" color="gray.500">
-                          No Funny Dog NFTs detected in your wallet.
-                        </Text>
-                      ) : (
-                        <Wrap spacing={2}>
-                          {walletNftTokens.map((tokenId) => (
-                            <WrapItem key={tokenId}>
-                              <Button
-                                size="sm"
-                                variant={listTokenIdNumber === tokenId ? 'solid' : 'outline'}
-                                colorScheme="orange"
-                                onClick={() => setListTokenId(tokenId.toString())}
-                              >
-                                NFT #{tokenId}
-                              </Button>
-                            </WrapItem>
-                          ))}
-                        </Wrap>
-                      )}
-                    </Box>
-                    <FormControl>
-                      <FormLabel>Token ID</FormLabel>
-                      <NumberInput
-                        value={listTokenId}
-                        min={0}
-                        step={1}
-                        clampValueOnBlur={false}
-                        onChange={(valueString) => setListTokenId(valueString)}
-                      >
-                        <NumberInputField placeholder="e.g. 12" />
-                      </NumberInput>
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Listing Price (STX)</FormLabel>
-                      <NumberInput
-                        value={listPrice}
-                        min={0}
-                        precision={6}
-                        step={0.1}
-                        clampValueOnBlur={false}
-                        onChange={(valueString) => setListPrice(valueString)}
-                      >
-                        <NumberInputField placeholder="0.0 STX" />
-                      </NumberInput>
-                      <FormHelperText>
-                        {listingPriceMicro > 0
-                          ? `${(listingPriceMicro / MICROSTX_IN_STX).toFixed(6)} STX`
-                          : 'Set the sale price in STX.'}
-                      </FormHelperText>
-                    </FormControl>
-                    <Button
-                      colorScheme="orange"
-                      onClick={handleCreateListing}
-                      isDisabled={isListDisabled}
-                      isLoading={isListing}
-                    >
-                      List NFT
-                    </Button>
-                    {pendingListTxId && (
-                      <Link
-                        fontSize="sm"
-                        color="blue.500"
-                        href={getExplorerLink(pendingListTxId, network)}
-                        isExternal
-                      >
-                        View listing transaction <ExternalLinkIcon mx="4px" />
-                      </Link>
-                    )}
-                  </Stack>
-                )}
-              </Stack>
-
-              <Divider />
-
-              <Stack spacing={4}>
-                <Heading size="sm">Active Listings</Heading>
-                {listingsLoading ? (
-                  <Center py={6}>
-                    <Spinner />
-                  </Center>
-                ) : marketplaceListings.length === 0 ? (
-                  <Text fontSize="sm" color="gray.500">
-                    No listings found. List an NFT to populate the marketplace.
-                  </Text>
-                ) : (
-                  <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={4}>
-                    {marketplaceListings.map((listing) => (
-                      <ListingCard key={listing.id} listing={listing} onRefresh={refreshAll} />
-                    ))}
-                  </SimpleGrid>
-                )}
-              </Stack>
-            </Stack>
-          </CardBody>
-        </Card>
-
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
           <Card>
             <CardHeader>
