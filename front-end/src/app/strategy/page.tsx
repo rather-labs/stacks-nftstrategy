@@ -1,10 +1,7 @@
 'use client';
-
-import Image from 'next/image';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Badge,
-  Box,
   Button,
   Card,
   CardBody,
@@ -46,6 +43,7 @@ import { shouldUseDirectCall, executeContractCall, openContractCall } from '@/li
 import { useCurrentAddress } from '@/hooks/useCurrentAddress';
 import { getStrategyPrincipal } from '@/constants/contracts';
 import { getAccountExplorerLink, getExplorerLink } from '@/utils/explorer-links';
+import { TokenImage } from '@/components/nft/TokenImage';
 
 const MICROSTX_IN_STX = 1_000_000;
 
@@ -457,8 +455,6 @@ export default function StrategyDashboard() {
                   {strategyListings.map((listing) => {
                     const assetContract = listing.nftAssetContract;
                     const tokenId = listing.tokenId;
-                    const imageIndex = tokenId % 13;
-                    const imageSrc = `/images/dogs/${imageIndex}.webp`;
                     const contractHref = getAccountExplorerLink(assetContract, network);
                     const shortenedContract = `${assetContract.slice(0, 6)}…${assetContract.slice(-4)}`;
 
@@ -466,21 +462,11 @@ export default function StrategyDashboard() {
                       <Card key={`${listing.id}-${tokenId}`} bg="gray.50">
                         <CardBody>
                           <VStack align="start" spacing={3}>
-                            <Box
-                              w="100%"
+                            <TokenImage
+                              tokenId={tokenId}
+                              alt={`Funny Dog #${tokenId}`}
                               borderRadius="md"
-                              overflow="hidden"
-                              position="relative"
-                              sx={{ aspectRatio: '1 / 1' }}
-                            >
-                              <Image
-                                src={imageSrc}
-                                alt={`Funny Dog #${tokenId}`}
-                                fill
-                                sizes="(min-width: 768px) 240px, 100vw"
-                                style={{ objectFit: 'cover' }}
-                              />
-                            </Box>
+                            />
                             <Heading size="sm">NFT #{tokenId}</Heading>
                             <Tooltip label={assetContract} placement="top" hasArrow>
                               <Link

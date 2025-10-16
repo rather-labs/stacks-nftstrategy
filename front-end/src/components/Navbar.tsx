@@ -1,17 +1,30 @@
 'use client';
 
 import { Box, Container, Flex, Link } from '@chakra-ui/react';
-import { useContext, useCallback } from 'react';
+import { useContext, useCallback, useMemo } from 'react';
 import { HiroWalletContext } from './HiroWalletProvider';
 import { useDevnetWallet } from '@/lib/devnet-wallet-context';
 import { DevnetWalletButton } from './DevnetWalletButton';
 import { ConnectWalletButton } from './ConnectWallet';
 import { NetworkSelector } from './NetworkSelector';
-import { isDevnetEnvironment } from '@/lib/use-network';
+import { isDevnetEnvironment, useNetwork } from '@/lib/use-network';
+import { useCurrentAddress } from '@/hooks/useCurrentAddress';
+import { getStrategyContract } from '@/constants/contracts';
 
 export const Navbar = () => {
   const { isWalletConnected } = useContext(HiroWalletContext);
   const { currentWallet, wallets, setCurrentWallet } = useDevnetWallet();
+  const network = useNetwork();
+  const currentAddress = useCurrentAddress();
+  const strategyDeployer = useMemo(() => {
+    if (!network || network === 'devnet') return null;
+    return getStrategyContract(network).contractAddress;
+  }, [network]);
+  const normalizedCurrent = currentAddress?.toUpperCase() ?? null;
+  const normalizedDeployer = strategyDeployer?.toUpperCase() ?? null;
+  const showAdminLink =
+    network !== 'testnet' ||
+    (!!normalizedCurrent && !!normalizedDeployer && normalizedCurrent === normalizedDeployer);
 
   const handleConnect = useCallback(async () => {
     if (!isWalletConnected) {
@@ -65,9 +78,11 @@ export const Navbar = () => {
             <Link href="/liquidity">
               <Box>Liquidity-Pool</Box>
             </Link>
-            <Link href="/admin">
-              <Box>Admin</Box>
-            </Link>
+            {showAdminLink && (
+              <Link href="/admin">
+                <Box>Admin</Box>
+              </Link>
+            )}
             <NetworkSelector />
             {isDevnetEnvironment() ? (
               <DevnetWalletButton
