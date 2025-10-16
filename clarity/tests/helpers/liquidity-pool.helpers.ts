@@ -1,9 +1,9 @@
 import { Cl } from "@stacks/transactions";
 import { expect } from "vitest";
 import { CONTRACTS, ERROR_CODES, POOL_CONSTANTS } from "./constants";
-import { signers, simnet } from "./setup";
+import { signers } from "./test-setup";
 
-//declare const simnet: any;
+declare const simnet: any;
 
 // Test accounts
 export const getAccounts = () => signers();

@@ -1,18 +1,16 @@
 import { describe, it, beforeEach } from "vitest";
 import { Cl } from "@stacks/transactions";
 import {
-  getAccounts,
   nft,
   marketplace,
-  balance,
-  utils,
   assertions,
   expect,
 } from "./helpers/marketplace.helpers";
 import { ERROR_CODES, PRICES } from "./helpers/constants";
+import { signers, balance, utils } from "./helpers/test-setup";
 
 describe("NFT Marketplace Integration Tests", () => {
-  const { deployer, alice, bob, charlie } = getAccounts();
+  const { deployer, alice, bob, charlie } = signers();
   const nftContract = `${deployer}.funny-dog`;
 
   describe("Core Marketplace Flow", () => {

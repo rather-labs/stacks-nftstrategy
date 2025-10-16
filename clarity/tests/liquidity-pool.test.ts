@@ -3,13 +3,13 @@ import { Cl } from "@stacks/transactions";
 
 declare const simnet: any;
 
-describe("Liquidity Pool - Initialization", () => {
+describe("Liquidity Pool Tests", () => {
   const accounts = simnet.getAccounts();
   const deployer = accounts.get("deployer")!;
   const alice = accounts.get("wallet_1")!;
   const poolContract = `${deployer}.liquidity-pool`;
 
-  describe("Pool Setup", () => {
+  describe("Initialization", () => {
     it("should mint tokens to pool and initialize", () => {
       // Mint tokens (goes to deployer by default)
       const mintResult = simnet.callPublicFn(
@@ -57,6 +57,68 @@ describe("Liquidity Pool - Initialization", () => {
         deployer
       );
       expect(secondInit.result).toEqual(Cl.error(Cl.uint(101)));
+    });
+  });
+
+  describe("Read-only functions", () => {
+    it("should get correct token contract", () => {
+      const result = simnet.callReadOnlyFn(
+        "liquidity-pool",
+        "get-token",
+        [],
+        alice
+      );
+      expect(result.result).toEqual(
+        Cl.ok(Cl.principal(`${deployer}.strategy-token`))
+      );
+    });
+
+    it("should return uninitialized status before init", () => {
+      const result = simnet.callReadOnlyFn(
+        "liquidity-pool",
+        "get-status",
+        [],
+        alice
+      );
+      expect(result.result).toEqual(Cl.ok(Cl.bool(false)));
+    });
+  });
+
+  describe("Error cases", () => {
+    it("should fail swap when pool not initialized", () => {
+      // Try to swap without initialization
+      const swapResult = simnet.callPublicFn(
+        "liquidity-pool",
+        "swap-stx-for-rather",
+        [Cl.uint(1000000), Cl.uint(0)],
+        alice
+      );
+      expect(swapResult.result).toEqual(Cl.error(Cl.uint(102))); // ERR_NOT_INIT
+    });
+
+    it("should fail quote when pool not initialized", () => {
+      const quoteResult = simnet.callReadOnlyFn(
+        "liquidity-pool",
+        "get-quote-stx-for-rather",
+        [Cl.uint(1000000)],
+        alice
+      );
+      expect(quoteResult.result).toEqual(Cl.error(Cl.uint(102))); // ERR_NOT_INIT
+    });
+
+    it("should fail with zero amount", () => {
+      // Initialize pool first
+      simnet.callPublicFn("strategy-token", "mint", [], deployer);
+      simnet.callPublicFn("liquidity-pool", "init", [], deployer);
+
+      // Try to get quote with zero amount
+      const quoteResult = simnet.callReadOnlyFn(
+        "liquidity-pool",
+        "get-quote-stx-for-rather",
+        [Cl.uint(0)],
+        alice
+      );
+      expect(quoteResult.result).toEqual(Cl.error(Cl.uint(104))); // ERR_BAD_INPUT
     });
   });
 });
