@@ -54,7 +54,7 @@ plan:
         - contract-publish:
             contract-name: strategy-token
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 47720
+            cost: 51450
             path: contracts/strategy-token.clar
             anchor-block-only: true
             clarity-version: 3

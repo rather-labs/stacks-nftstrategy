@@ -35,10 +35,10 @@ import { useNetwork } from '@/lib/use-network';
 import {
   buildBuyAndRelistTx,
   buildBuyTokenAndBurnTx,
-  fetchSoldNfts,
+  fetchStrategyBurnStats,
   getStrategyContractsSummary,
+  StrategyBurnStats,
   StrategyMetrics,
-  SoldNft,
 } from '@/lib/strategy/operations';
 import { fetchListings, Listing } from '@/lib/marketplace/operations';
 import { useDevnetWallet } from '@/lib/devnet-wallet-context';
@@ -80,12 +80,13 @@ export default function StrategyDashboard() {
   });
 
   const {
-    data: soldNfts = [],
-    isLoading: soldLoading,
-    refetch: refetchSold,
-  } = useQuery<SoldNft[]>({
-    queryKey: ['strategy-sold-nfts', network],
-    queryFn: () => (network ? fetchSoldNfts(network) : Promise.resolve([])),
+    data: burnStats,
+    isLoading: burnStatsLoading,
+    refetch: refetchBurnStats,
+  } = useQuery<StrategyBurnStats>({
+    queryKey: ['strategy-burn-stats', network],
+    queryFn: () =>
+      network ? fetchStrategyBurnStats(network) : Promise.resolve({ burned: 0, initialSupply: 0 }),
     enabled: !!network,
     refetchInterval: 30000,
   });
@@ -108,11 +109,11 @@ export default function StrategyDashboard() {
 
   const refreshAll = useCallback(() => {
     void refetchMetrics();
-    void refetchSold();
+    void refetchBurnStats();
     if (strategyPrincipal) {
       void refetchStrategyListings();
     }
-  }, [refetchMetrics, refetchSold, refetchStrategyListings, strategyPrincipal]);
+  }, [refetchMetrics, refetchBurnStats, refetchStrategyListings, strategyPrincipal]);
 
   const handleBuyFloor = useCallback(async () => {
     if (!network || !metrics?.floorListing) {
@@ -269,6 +270,11 @@ export default function StrategyDashboard() {
     !metricsLoading && floorPriceStx && floorPriceStx > 0
       ? Math.min((feeBalanceStx / floorPriceStx) * 100, 100)
       : 0;
+
+  const burnedRather = burnStats ? burnStats.burned / MICROSTX_IN_STX : 0;
+  const totalSupplyRather = burnStats ? burnStats.initialSupply / MICROSTX_IN_STX : 0;
+  const burnedPercentage =
+    !burnStatsLoading && totalSupplyRather > 0 ? (burnedRather / totalSupplyRather) * 100 : 0;
 
   return (
     <Container maxW="6xl" py={10}>
@@ -499,50 +505,56 @@ export default function StrategyDashboard() {
 
           <Card>
             <CardHeader>
-              <Heading size="md">Recent Sales</Heading>
-              <Text fontSize="sm" color="gray.600" mt={2}>
-                Transfers executed from the strategy contract to external buyers.
-              </Text>
+              <Stack spacing={1}>
+                <Heading size="md">Burned RATHER</Heading>
+              </Stack>
             </CardHeader>
             <Divider />
+            <Text fontSize="sm" color="gray.600" mt={3} textAlign="left" px={6}>
+              Tracks cumulative RATHER removed from circulation by the strategy.
+            </Text>
             <CardBody>
-              {soldLoading ? (
+              {burnStatsLoading ? (
                 <Center py={6}>
                   <Spinner />
                 </Center>
-              ) : soldNfts.length === 0 ? (
-                <Text fontSize="sm" color="gray.600">
-                  No sales detected yet. Run strategy actions to list and sell NFTs.
-                </Text>
               ) : (
-                <Stack spacing={4}>
-                  {soldNfts.map((sale) => (
-                    <Box
-                      key={`${sale.txId}-${sale.tokenId}`}
-                      p={3}
-                      borderWidth="1px"
-                      borderRadius="md"
-                    >
-                      <HStack justify="space-between" align="start">
-                        <Stack spacing={1}>
-                          <Text fontWeight="semibold">NFT #{sale.tokenId}</Text>
-                          <Text fontSize="sm" color="gray.600">
-                            Recipient {sale.recipient.slice(0, 6)}…{sale.recipient.slice(-4)}
-                          </Text>
-                        </Stack>
-                        <Badge colorScheme="purple">Block {sale.blockHeight}</Badge>
-                      </HStack>
-                      <Link
-                        mt={2}
-                        fontSize="sm"
-                        color="blue.500"
-                        href={getExplorerLink(sale.txId, network)}
-                        isExternal
-                      >
-                        View transaction <ExternalLinkIcon mx="4px" />
-                      </Link>
-                    </Box>
-                  ))}
+                <Stack spacing={5}>
+                  <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
+                    <Stat>
+                      <StatLabel>Total Burned</StatLabel>
+                      <StatNumber>{`${burnedRather.toFixed(3)} RATHER`}</StatNumber>
+                    </Stat>
+                    <Stat>
+                      <StatLabel>Supply Reduced</StatLabel>
+                      <StatNumber>{`${burnedPercentage.toFixed(2)}%`}</StatNumber>
+                      <StatHelpText mt={1} color="gray.500">
+                        Initial supply{' '}
+                        {totalSupplyRather.toLocaleString(undefined, {
+                          maximumFractionDigits: 3,
+                          minimumFractionDigits: 0,
+                        })}{' '}
+                        RATHER
+                      </StatHelpText>
+                    </Stat>
+                  </SimpleGrid>
+                  <Stack spacing={2}>
+                    <Text fontSize="sm" color="gray.600">
+                      Burn progress against total supply
+                    </Text>
+                    <Progress
+                      value={burnedPercentage}
+                      colorScheme="orange"
+                      size="sm"
+                      borderRadius="full"
+                      isIndeterminate={burnStatsLoading}
+                    />
+                    <Text fontSize="xs" color="gray.500">
+                      {burnedPercentage > 0
+                        ? `${burnedPercentage.toFixed(2)}% permanently removed from circulation.`
+                        : 'No RATHER has been burned yet.'}
+                    </Text>
+                  </Stack>
                 </Stack>
               )}
             </CardBody>

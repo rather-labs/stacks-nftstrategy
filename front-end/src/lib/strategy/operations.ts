@@ -33,6 +33,11 @@ export interface StrategyMetrics {
   floorListing: Listing | null;
 }
 
+export interface StrategyBurnStats {
+  burned: number;
+  initialSupply: number;
+}
+
 export interface SoldNft {
   tokenId: number;
   recipient: string;
@@ -164,6 +169,46 @@ export const fetchStrategyFeeBalance = async (network: Network): Promise<number>
     console.error('Error fetching strategy fee balance:', error);
     return 0;
   }
+};
+
+const fetchStrategyUint = async (
+  network: Network,
+  functionName: 'get-burned-balance' | 'get-initial-supply'
+): Promise<number> => {
+  const api = getApi(network).smartContractsApi;
+  const strategyContract = getStrategyContract(network);
+
+  try {
+    const response = await api.callReadOnlyFunction({
+      ...strategyContract,
+      functionName,
+      readOnlyFunctionArgs: {
+        sender: strategyContract.contractAddress,
+        arguments: [],
+      },
+    });
+
+    const clarityValue = parseReadOnlyResponse(response);
+    if (!clarityValue) return 0;
+    if (clarityValue.type !== ClarityType.ResponseOk) return 0;
+
+    return Number(cvToValue(clarityValue.value));
+  } catch (error) {
+    console.error(`Error fetching ${functionName}:`, error);
+    return 0;
+  }
+};
+
+export const fetchStrategyBurnStats = async (network: Network): Promise<StrategyBurnStats> => {
+  const [burned, initialSupply] = await Promise.all([
+    fetchStrategyUint(network, 'get-burned-balance'),
+    fetchStrategyUint(network, 'get-initial-supply'),
+  ]);
+
+  return {
+    burned,
+    initialSupply,
+  };
 };
 
 export const fetchFloorListing = async (network: Network): Promise<Listing | null> => {
