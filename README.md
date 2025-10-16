@@ -1,5 +1,5 @@
-![Rather Strategy UI](./marketplace-screenshot.png)
-
+![Rather Labs](./front-end/public/images/rather-white.svg#gh-dark-mode-only)
+![Rather Labs](./front-end/public/images/rather-dark.svg#gh-light-mode-only)
 # Rather Strategy Monorepo
 
 Full-stack reference implementation of the “Rather Strategy Protocol” on Stacks. The repository bundles:
