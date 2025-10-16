@@ -39,6 +39,13 @@
 
 (define-public (get-fee-balance) (ok (var-get fee-balance)))
 
+;; Burned balance tracker (for informational purposes only)
+(define-data-var burned-balance uint u0)
+(define-public (get-burned-balance) (ok (var-get burned-balance)))
+
+;; Total supply getter (for informational purposes only)
+(define-public (get-initial-supply) (ok TOTAL_SUPPLY))
+
 ;; 5) Required SIP-010 entrypoints
 
 ;; SIP-010 function: Transfers tokens to a recipient
@@ -120,7 +127,10 @@
 
 (define-private (strategy-burn (amount uint))
   (let ((self (as-contract tx-sender)))
-  (ft-burn? rather-coin amount self))
+    (try! (ft-burn? rather-coin amount self))
+    (var-set burned-balance (+ (var-get burned-balance) amount))
+    (ok true)
+  )
 )
 
 ;; Check STX balance - fee-balance is greater than 0, buy RATHER at market price and burn it

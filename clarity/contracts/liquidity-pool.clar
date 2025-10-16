@@ -35,6 +35,23 @@
   (ok (var-get initialized))
 )
 
+;; Update reserves to current balances. Only callable by owner.
+(define-public (update-reserves)
+  (begin
+    (asserts! (is-eq tx-sender (var-get owner)) ERR_NOT_OWNER)
+    (let ((self (as-contract tx-sender)))
+      (let (
+        (stx-bal (stx-get-balance self))
+        (r-bal (unwrap! (contract-call? .strategy-token get-balance self) ERR_BAD_INPUT))
+      )
+        (var-set reserve-stx stx-bal)
+        (var-set reserve-rather r-bal)
+        (ok { stx: stx-bal, rather: r-bal })
+      )
+    )
+  )
+)
+
 ;; Initialize reserves: owner provides initial STX (pulled in this call) and declares initial token reserve.
 (define-public (init)
   (begin
