@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Badge,
@@ -26,6 +27,7 @@ import {
   useToast,
   VStack,
   Progress,
+  Tooltip,
 } from '@chakra-ui/react';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { useQuery } from '@tanstack/react-query';
@@ -38,30 +40,14 @@ import {
   StrategyMetrics,
   SoldNft,
 } from '@/lib/strategy/operations';
+import { fetchListings, Listing } from '@/lib/marketplace/operations';
 import { useDevnetWallet } from '@/lib/devnet-wallet-context';
 import { shouldUseDirectCall, executeContractCall, openContractCall } from '@/lib/contract-utils';
 import { useCurrentAddress } from '@/hooks/useCurrentAddress';
-import { useNftHoldings } from '@/hooks/useNftHoldings';
 import { getStrategyPrincipal } from '@/constants/contracts';
-import { formatValue } from '@/lib/clarity-utils';
-import { getPlaceholderImage } from '@/utils/nft-utils';
 import { getAccountExplorerLink, getExplorerLink } from '@/utils/explorer-links';
 
 const MICROSTX_IN_STX = 1_000_000;
-
-const extractTokenId = (value: any): number | null => {
-  if (!value) return null;
-  if (typeof value.repr === 'string') {
-    const reprMatch = /u(\d+)/.exec(value.repr);
-    if (reprMatch) return Number(reprMatch[1]);
-  }
-  if (typeof value.hex === 'string') {
-    const formatted = formatValue(value.hex);
-    const hexMatch = /u(\d+)/.exec(formatted);
-    if (hexMatch) return Number(hexMatch[1]);
-  }
-  return null;
-};
 
 export default function StrategyDashboard() {
   const toast = useToast();
@@ -105,18 +91,28 @@ export default function StrategyDashboard() {
   });
 
   const {
-    data: holdingsData,
-    isLoading: holdingsLoading,
-    refetch: refetchHoldings,
-  } = useNftHoldings(strategyPrincipal);
+    data: strategyListings = [],
+    isLoading: listingsLoading,
+    refetch: refetchStrategyListings,
+  } = useQuery<Listing[]>({
+    queryKey: ['strategy-owned-listings', network, strategyPrincipal],
+    queryFn: () =>
+      network && strategyPrincipal
+        ? fetchListings(network).then((listings) =>
+            listings.filter((listing) => listing.maker === strategyPrincipal)
+          )
+        : Promise.resolve([]),
+    enabled: !!network && !!strategyPrincipal,
+    refetchInterval: 20000,
+  });
 
   const refreshAll = useCallback(() => {
     void refetchMetrics();
     void refetchSold();
     if (strategyPrincipal) {
-      void refetchHoldings();
+      void refetchStrategyListings();
     }
-  }, [refetchMetrics, refetchSold, refetchHoldings, strategyPrincipal]);
+  }, [refetchMetrics, refetchSold, refetchStrategyListings, strategyPrincipal]);
 
   const handleBuyFloor = useCallback(async () => {
     if (!network || !metrics?.floorListing) {
@@ -262,7 +258,7 @@ export default function StrategyDashboard() {
     );
   }
 
-  const holdings = holdingsData?.results ?? [];
+  const marketplaceHoldingCount = strategyListings.length;
   const feeBalanceStx = metrics ? metrics.feeBalance / MICROSTX_IN_STX : 0;
   const stxBalance = metrics ? metrics.stxBalance / MICROSTX_IN_STX : 0;
   const burnableStx = metrics
@@ -431,50 +427,66 @@ export default function StrategyDashboard() {
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
           <Card>
             <CardHeader>
-              <Heading size="md">Current Holdings</Heading>
-              <Text fontSize="sm" color="gray.600" mt={2}>
-                NFTs currently held or relisted by the strategy contract.
-              </Text>
+              <Stack spacing={1}>
+                <HStack spacing={2} align="center">
+                  <Heading size="md">Current Holdings</Heading>
+                  <Badge colorScheme="purple">
+                    {listingsLoading ? '—' : marketplaceHoldingCount}
+                  </Badge>
+                </HStack>
+              </Stack>
             </CardHeader>
             <Divider />
             <CardBody>
-              {holdingsLoading ? (
+              {listingsLoading ? (
                 <Center py={6}>
                   <Spinner />
                 </Center>
-              ) : holdings.length === 0 ? (
+              ) : marketplaceHoldingCount === 0 ? (
                 <Text fontSize="sm" color="gray.600">
                   Strategy contract does not hold any Funny Dog NFTs right now.
                 </Text>
               ) : (
                 <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
-                  {holdings.map((holding) => {
-                    const assetContract = holding.asset_identifier.split('::')[0];
-                    const tokenId = extractTokenId(holding.value);
-                    if (tokenId === null) return null;
+                  {strategyListings.map((listing) => {
+                    const assetContract = listing.nftAssetContract;
+                    const tokenId = listing.tokenId;
+                    const imageIndex = tokenId % 13;
+                    const imageSrc = `/images/dogs/${imageIndex}.webp`;
+                    const contractHref = getAccountExplorerLink(assetContract, network);
+                    const shortenedContract = `${assetContract.slice(0, 6)}…${assetContract.slice(-4)}`;
 
                     return (
-                      <Card key={`${holding.asset_identifier}-${tokenId}`} bg="gray.50">
+                      <Card key={`${listing.id}-${tokenId}`} bg="gray.50">
                         <CardBody>
                           <VStack align="start" spacing={3}>
-                            <Box w="100%" borderRadius="md" overflow="hidden">
-                              {getPlaceholderImage(network, assetContract, tokenId) ? (
-                                <Box
-                                  as="img"
-                                  src={getPlaceholderImage(network, assetContract, tokenId) || ''}
-                                  alt={`NFT #${tokenId}`}
-                                  w="100%"
-                                  h="160px"
-                                  objectFit="cover"
-                                />
-                              ) : (
-                                <Box w="100%" h="160px" bg="gray.200" />
-                              )}
+                            <Box
+                              w="100%"
+                              borderRadius="md"
+                              overflow="hidden"
+                              position="relative"
+                              sx={{ aspectRatio: '1 / 1' }}
+                            >
+                              <Image
+                                src={imageSrc}
+                                alt={`Funny Dog #${tokenId}`}
+                                fill
+                                sizes="(min-width: 768px) 240px, 100vw"
+                                style={{ objectFit: 'cover' }}
+                              />
                             </Box>
                             <Heading size="sm">NFT #{tokenId}</Heading>
-                            <Text fontSize="xs" color="gray.500">
-                              {assetContract}
-                            </Text>
+                            <Tooltip label={assetContract} placement="top" hasArrow>
+                              <Link
+                                fontSize="xs"
+                                color="blue.500"
+                                href={contractHref}
+                                isExternal
+                                noOfLines={1}
+                              >
+                                {shortenedContract}
+                              </Link>
+                            </Tooltip>
                           </VStack>
                         </CardBody>
                       </Card>
