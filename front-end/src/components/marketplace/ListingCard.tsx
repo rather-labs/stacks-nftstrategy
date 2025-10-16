@@ -10,8 +10,6 @@ import {
   useToast,
   Button,
   Text,
-  Image,
-  Box,
   Flex,
   Link,
 } from '@chakra-ui/react';
@@ -23,11 +21,11 @@ import { executeContractCall } from '@/lib/contract-utils';
 import { useDevnetWallet } from '@/lib/devnet-wallet-context';
 import { useGetTxId } from '@/hooks/useNftHoldings';
 import { formatContractName } from '@/utils/formatting';
-import { getPlaceholderImage } from '@/utils/nft-utils';
 import { useNetwork } from '@/lib/use-network';
 import { useCurrentAddress } from '@/hooks/useCurrentAddress';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { getAccountExplorerLink, getExplorerLink } from '@/utils/explorer-links';
+import { TokenImage } from '@/components/nft/TokenImage';
 
 interface ListingCardProps {
   listing: {
@@ -164,20 +162,7 @@ export const ListingCard = ({ listing, onRefresh }: ListingCardProps) => {
       boxShadow="lg"
     >
       <CardBody padding={0}>
-        <Box aspectRatio={1} overflow="hidden">
-          {getPlaceholderImage(network, listing.nftAssetContract, listing.tokenId) != null ? (
-            <Image
-              src={getPlaceholderImage(network, listing.nftAssetContract, listing.tokenId) || ''}
-              alt={`NFT #${listing.tokenId}`}
-              borderRadius="lg"
-              width="100%"
-              height="100%"
-              objectFit="cover"
-            />
-          ) : (
-            <Box width="100%" height="100%" bg="bg.muted" borderRadius="lg" />
-          )}
-        </Box>
+        <TokenImage tokenId={listing.tokenId} alt={`NFT #${listing.tokenId}`} />
         <Stack spacing={2} p={4}>
           <Heading size="md">NFT #{listing.tokenId}</Heading>
           <Text fontSize="sm" color="text.tertiary">

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
@@ -388,14 +389,13 @@ export default function MarketplacePage() {
                     boxShadow="md"
                     overflow="hidden"
                   >
-                    <Box position="relative" paddingTop="100%">
-                      <Center
-                        position="absolute"
-                        top={0}
-                        left={0}
-                        right={0}
-                        bottom={0}
-                        bg="bg.muted"
+                    <Box position="relative" sx={{ aspectRatio: '1 / 1' }}>
+                      <Image
+                        src="https://placedog.net/500/500?id=236"
+                        alt="Mint Funny Dog preview"
+                        fill
+                        sizes="(min-width: 768px) 240px, 100vw"
+                        style={{ objectFit: 'cover' }}
                       />
                     </Box>
                     <Stack p={4} spacing={3}>

@@ -47,6 +47,7 @@ import {
 import { useDevnetWallet } from '@/lib/devnet-wallet-context';
 import { useCurrentAddress } from '@/hooks/useCurrentAddress';
 import { getExplorerLink } from '@/utils/explorer-links';
+import { getStrategyContract } from '@/constants/contracts';
 
 const MICROSTX_IN_STX = 1_000_000;
 
@@ -96,6 +97,18 @@ export default function AdminUtilitiesPage() {
   const formattedReserves = poolReserves ? formatPoolReserves(poolReserves) : null;
   const poolInitialized = poolReserves?.initialized ?? false;
   const sendAmountMicro = useMemo(() => toMicroAmount(sendAmount), [sendAmount]);
+  const strategyDeployer = useMemo(() => {
+    if (!network) return null;
+    return getStrategyContract(network).contractAddress;
+  }, [network]);
+  const normalizedCurrentAddress = currentAddress?.toUpperCase() ?? null;
+  const normalizedDeployer = strategyDeployer?.toUpperCase() ?? null;
+  const isTestnet = network === 'testnet';
+  const isAuthorized =
+    !isTestnet ||
+    (!!normalizedCurrentAddress &&
+      !!normalizedDeployer &&
+      normalizedCurrentAddress === normalizedDeployer);
 
   const isSendDisabled = !currentAddress || sendAmountMicro <= 0 || !sendRecipient || isSendingStx;
   const isMintDisabled = !currentAddress || isMinting || hasMintedTokens || mintStatusLoading;
@@ -441,6 +454,24 @@ export default function AdminUtilitiesPage() {
     return (
       <Center minH="60vh">
         <Spinner />
+      </Center>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <Center minH="60vh" px={4} textAlign="center">
+        <Stack spacing={4} align="center" maxW="lg">
+          <Heading size="md">Restricted Access</Heading>
+          <Text color="gray.600">
+            Admin utilities on testnet are limited to the strategy deployer wallet.
+          </Text>
+          {strategyDeployer && (
+            <Text fontSize="sm" color="gray.500">
+              Connect with {strategyDeployer} to continue.
+            </Text>
+          )}
+        </Stack>
       </Center>
     );
   }
