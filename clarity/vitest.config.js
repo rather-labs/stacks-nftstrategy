@@ -1,7 +1,7 @@
 
 /// <reference types="vitest" />
 
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";  // Changed this line
 import { vitestSetupFilePath, getClarinetVitestsArgv } from "@hirosystems/clarinet-sdk/vitest";
 
 /*
@@ -29,12 +29,10 @@ export default defineConfig({
     },
     setupFiles: [
       vitestSetupFilePath,
-      // custom setup files can be added here
     ],
     environmentOptions: {
       clarinet: {
         ...getClarinetVitestsArgv(),
-        // add or override options
       },
     },
   },
