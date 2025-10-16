@@ -21,6 +21,7 @@ import {
   Stat,
   StatLabel,
   StatNumber,
+  StatHelpText,
   Text,
   useToast,
   VStack,
@@ -33,6 +34,7 @@ import {
   buildBuyTokenAndBurnTx,
   fetchSoldNfts,
   getStrategyContractsSummary,
+  StrategyMetrics,
   SoldNft,
 } from '@/lib/strategy/operations';
 import { useDevnetWallet } from '@/lib/devnet-wallet-context';
@@ -80,12 +82,12 @@ export default function StrategyDashboard() {
     data: metrics,
     isLoading: metricsLoading,
     refetch: refetchMetrics,
-  } = useQuery({
+  } = useQuery<StrategyMetrics>({
     queryKey: ['strategy-metrics', network],
     queryFn: () =>
       network
         ? getStrategyContractsSummary(network)
-        : Promise.resolve({ feeBalance: 0, floorListing: null }),
+        : Promise.resolve({ feeBalance: 0, stxBalance: 0, floorListing: null }),
     enabled: !!network,
     refetchInterval: 15000,
   });
@@ -261,6 +263,10 @@ export default function StrategyDashboard() {
 
   const holdings = holdingsData?.results ?? [];
   const feeBalanceStx = metrics ? metrics.feeBalance / MICROSTX_IN_STX : 0;
+  const stxBalance = metrics ? metrics.stxBalance / MICROSTX_IN_STX : 0;
+  const burnableStx = metrics
+    ? Math.max(metrics.stxBalance - metrics.feeBalance, 0) / MICROSTX_IN_STX
+    : 0;
   const floorPriceStx = metrics?.floorListing ? metrics.floorListing.price / MICROSTX_IN_STX : null;
 
   return (
@@ -276,24 +282,34 @@ export default function StrategyDashboard() {
         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
           <Card>
             <CardBody>
-              <Stat>
-                <StatLabel>Treasury Balance</StatLabel>
-                <StatNumber>{metricsLoading ? '—' : `${feeBalanceStx.toFixed(3)} STX`}</StatNumber>
-              </Stat>
-              <Text mt={3} fontSize="sm" color="gray.600">
-                Fee-on-transfer accrual currently held by the strategy contract.
-              </Text>
-              {pendingBurnTxId && (
-                <Link
-                  mt={3}
-                  fontSize="sm"
-                  color="blue.500"
-                  href={getExplorerLink(pendingBurnTxId, network)}
-                  isExternal
-                >
-                  View burn transaction <ExternalLinkIcon mx="4px" />
-                </Link>
-              )}
+              <Stack spacing={4}>
+                <Stat>
+                  <StatLabel>Treasury Balance</StatLabel>
+                  <StatNumber>
+                    {metricsLoading ? '—' : `${feeBalanceStx.toFixed(3)} STX`}
+                  </StatNumber>
+                  <StatHelpText mt={1} color="gray.500">
+                    Portion of the strategy STX reserved for NFT purchases.
+                  </StatHelpText>
+                </Stat>
+                <Stat>
+                  <StatLabel>Burnable Balance</StatLabel>
+                  <StatNumber>{metricsLoading ? '—' : `${burnableStx.toFixed(3)} STX`}</StatNumber>
+                  <StatHelpText mt={1} color="gray.500">
+                    Total STX accrued on NFT sales.
+                  </StatHelpText>
+                </Stat>
+                {pendingBurnTxId && (
+                  <Link
+                    fontSize="sm"
+                    color="blue.500"
+                    href={getExplorerLink(pendingBurnTxId, network)}
+                    isExternal
+                  >
+                    View burn transaction <ExternalLinkIcon mx="4px" />
+                  </Link>
+                )}
+              </Stack>
             </CardBody>
           </Card>
 
