@@ -59,6 +59,9 @@ export const Navbar = () => {
             <Link href="/marketplace">
               <Box>Marketplace</Box>
             </Link>
+            <Link href="/liquidity">
+              <Box>Liquidity-Pool</Box>
+            </Link>
             <Link href="/admin">
               <Box>Admin</Box>
             </Link>
