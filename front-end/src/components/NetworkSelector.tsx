@@ -8,10 +8,8 @@ import {
   MenuItem,
   Button,
   Text,
-  Box,
   Flex,
   Badge,
-  Icon,
   useColorModeValue,
 } from '@chakra-ui/react';
 import { ChevronDownIcon } from '@chakra-ui/icons';

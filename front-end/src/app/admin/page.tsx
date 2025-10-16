@@ -56,6 +56,7 @@ export default function AdminUtilitiesPage() {
   const network = useNetwork();
   const currentAddress = useCurrentAddress();
   const { currentWallet } = useDevnetWallet();
+  const directCallEnabled = shouldUseDirectCall();
 
   const [sendRecipient, setSendRecipient] = useState('');
   const [sendAmount, setSendAmount] = useState('');
@@ -170,7 +171,7 @@ export default function AdminUtilitiesPage() {
     setIsSendingStx(true);
     setPendingSendTxId(null);
     try {
-      if (shouldUseDirectCall()) {
+      if (directCallEnabled) {
         if (!currentWallet) {
           throw new Error('Devnet wallet is not configured');
         }
@@ -223,7 +224,7 @@ export default function AdminUtilitiesPage() {
     currentAddress,
     sendRecipient,
     sendAmountMicro,
-    shouldUseDirectCall,
+    directCallEnabled,
     currentWallet,
     toast,
     refreshAll,
@@ -247,7 +248,7 @@ export default function AdminUtilitiesPage() {
     const txOptions = buildMintStrategyTokenTx(network);
 
     try {
-      if (shouldUseDirectCall()) {
+      if (directCallEnabled) {
         if (!currentWallet) {
           throw new Error('Devnet wallet is not configured');
         }
@@ -298,7 +299,7 @@ export default function AdminUtilitiesPage() {
   }, [
     network,
     currentAddress,
-    shouldUseDirectCall,
+    directCallEnabled,
     currentWallet,
     toast,
     refreshAll,
@@ -332,7 +333,7 @@ export default function AdminUtilitiesPage() {
     const txOptions = buildInitLiquidityPoolTx(network);
 
     try {
-      if (shouldUseDirectCall()) {
+      if (directCallEnabled) {
         if (!currentWallet) {
           throw new Error('Devnet wallet is not configured');
         }
@@ -380,7 +381,7 @@ export default function AdminUtilitiesPage() {
     network,
     currentAddress,
     poolInitialized,
-    shouldUseDirectCall,
+    directCallEnabled,
     currentWallet,
     toast,
     refreshAll,
@@ -404,7 +405,7 @@ export default function AdminUtilitiesPage() {
     const txOptions = buildUpdateReservesTx(network);
 
     try {
-      if (shouldUseDirectCall()) {
+      if (directCallEnabled) {
         if (!currentWallet) {
           throw new Error('Devnet wallet is not configured');
         }
@@ -448,7 +449,7 @@ export default function AdminUtilitiesPage() {
     } finally {
       setIsUpdatingReserves(false);
     }
-  }, [network, currentAddress, shouldUseDirectCall, currentWallet, toast, refreshAll]);
+  }, [network, currentAddress, directCallEnabled, currentWallet, toast, refreshAll]);
 
   if (!network) {
     return (

@@ -13,16 +13,14 @@ import {
   Link,
   useToast,
   Box,
+  type ButtonProps,
 } from '@chakra-ui/react';
 import { ChevronDownIcon, ExternalLinkIcon, CopyIcon } from '@chakra-ui/icons';
-import { useContext, useState } from 'react';
+import { useContext } from 'react';
 import { HiroWalletContext } from './HiroWalletProvider';
 import { getAccountExplorerLink } from '@/utils/explorer-links';
 
-interface ConnectWalletButtonProps {
-  children?: React.ReactNode;
-  [key: string]: any;
-}
+type ConnectWalletButtonProps = ButtonProps & { children?: React.ReactNode };
 
 export const ConnectWalletButton = (buttonProps: ConnectWalletButtonProps) => {
   const { children } = buttonProps;
@@ -109,7 +107,11 @@ export const ConnectWalletButton = (buttonProps: ConnectWalletButtonProps) => {
           View in Explorer
         </MenuItem>
         <MenuDivider />
-        <MenuItem onClick={disconnect} color="red.500" data-testid="disconnect-wallet-address-button">
+        <MenuItem
+          onClick={disconnect}
+          color="red.500"
+          data-testid="disconnect-wallet-address-button"
+        >
           Disconnect Wallet
         </MenuItem>
       </MenuList>

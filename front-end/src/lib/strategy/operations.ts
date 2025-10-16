@@ -46,6 +46,16 @@ export interface SoldNft {
   eventIndex?: number;
 }
 
+interface NftTransferEvent {
+  sender?: string;
+  recipient?: string;
+  token_id?: string;
+  value?: { repr?: string };
+  tx_id?: string;
+  block_height?: number;
+  event_index?: number;
+}
+
 const MAX_STX_SPEND = 1_000_000_000_000_000; // 1,000,000 STX (in microSTX)
 const MAX_RATHER_TRANSFER = 1_000_000_000_000; // Total RATHER supply minted
 
@@ -249,26 +259,28 @@ export const fetchSoldNfts = async (network: Network): Promise<SoldNft[]> => {
     }
 
     const data = await response.json();
-    const transfers = Array.isArray(data.results) ? data.results : [];
+    const transfers = Array.isArray(data.results) ? (data.results as NftTransferEvent[]) : [];
 
     const sold = transfers
-      .filter(
-        (event: any) => event.sender === strategyPrincipal && event.recipient !== strategyPrincipal
-      )
-      .map((event: any, index: number) => {
-        const tokenIdString = event.token_id || event.value?.repr || '';
+      .filter((event) => {
+        const sender = event.sender ?? '';
+        const recipient = event.recipient ?? '';
+        return sender === strategyPrincipal && recipient !== strategyPrincipal;
+      })
+      .map((event, index): SoldNft => {
+        const tokenIdString = event.token_id ?? event.value?.repr ?? '';
         const tokenIdMatch = /\d+/.exec(tokenIdString);
         const tokenId = tokenIdMatch ? Number(tokenIdMatch[0]) : Number.NaN;
 
         return {
           tokenId,
-          recipient: event.recipient,
-          txId: event.tx_id,
-          blockHeight: event.block_height,
+          recipient: event.recipient ?? '',
+          txId: event.tx_id ?? '',
+          blockHeight: event.block_height ?? 0,
           eventIndex: event.event_index ?? index,
-        } as SoldNft;
+        };
       })
-      .filter((event: SoldNft) => Number.isFinite(event.tokenId));
+      .filter((event) => Number.isFinite(event.tokenId));
 
     return sold.sort((a: SoldNft, b: SoldNft) => b.blockHeight - a.blockHeight).slice(0, 8);
   } catch (error) {

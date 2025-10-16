@@ -20,6 +20,16 @@ interface DirectCallResponse {
   txid: string;
 }
 
+type WalletContractCallParams = {
+  contract: `${string}.${string}`;
+  functionName: string;
+  functionArgs: ContractCallRegularOptions['functionArgs'];
+  network: string | Record<string, unknown> | undefined;
+  postConditions: ContractCallRegularOptions['postConditions'];
+  postConditionMode: 'allow' | 'deny';
+  sponsored: ContractCallRegularOptions['sponsored'];
+};
+
 export const shouldUseDirectCall = isDevnetEnvironment;
 
 export const executeContractCall = async (
@@ -101,8 +111,8 @@ export const executeStxTransfer = async (
 
 export const openContractCall = async (options: ContractCallRegularOptions) => {
   try {
-    const contract = `${options.contractAddress}.${options.contractName}`;
-    const params: any = {
+    const contract = `${options.contractAddress}.${options.contractName}` as `${string}.${string}`;
+    const params: WalletContractCallParams = {
       contract,
       functionName: options.functionName,
       functionArgs: options.functionArgs,
@@ -119,7 +129,7 @@ export const openContractCall = async (options: ContractCallRegularOptions) => {
       sponsored: options.sponsored,
     };
 
-    const result: TransactionResult = await request({}, 'stx_callContract', params);
+    const result: TransactionResult = await request({}, 'stx_callContract', params as never);
 
     if (options.onFinish) {
       options.onFinish(result as FinishedTxData);

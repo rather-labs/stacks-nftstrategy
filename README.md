@@ -1,122 +1,106 @@
-![NFT Marketplace on Stacks](./marketplace-screenshot.png)
+![Rather Strategy UI](./marketplace-screenshot.png)
 
-This is a full-stack demo of an NFT marketplace built on the Stacks blockchain, allowing users to mint, list, and purchase NFTs using STX tokens. This project demonstrates how to build decentralized Stacks applications using Clarity smart contracts and Next.js with the Hiro Platform.
+# Rather Strategy Monorepo
 
-By following this guide, you can have a working NFT marketplace live on the Stacks blockchain in less than 5 minutes!
+Full-stack reference implementation of the “Rather Strategy Protocol” on Stacks. The repository bundles:
 
-(This example app is intended for educational purposes only. The provided smart contracts have not been audited.)
+- A Next.js 14 front-end (Chakra UI + Stacks.js) for the marketplace, liquidity dashboard, and admin tooling.
+- A suite of Clarity contracts (NFT collection, marketplace, SIP-010 token/strategy, and liquidity pool) managed with Clarinet.
 
-## Features
+The codebase targets the Stacks testnet by default and is designed for fast iteration on devnet.
 
-- Mint NFTs to user wallets
-- List NFTs for sale
-- Secure ownership tracking and transfers
-- Pre-configured STX wallet plugin for Devnet testing
+This project has been created for the [Stacks Vibe Coding Hackathon](https://dorahacks.io/hackathon/stacks-vibe-coding).
 
-## Getting Started
+## Repository layout
+
+```
+├── AGENTS.md              # Contributor guide for AI/dev teammates
+├── README.md              # You are here
+├── clarity/               # Clarity workspace (contracts, tests, deployments)
+├── front-end/             # Next.js application
+└── turbo.json, package.json, etc.
+```
+
+Complementary documentation:
+
+- [front-end/README.md](front-end/README.md) – UI architecture, env vars, scripts, diagram.
+- [clarity/README.md](clarity/README.md) – Contract overview, deployment flow, diagram.
+
+## Quick start
 
 ### Prerequisites
 
-- [Hiro Platform](https://platform.hiro.so) account
-- Node.js 18+ and npm/yarn/pnpm
-- _(Recommended)_ [Clarinet](https://github.com/hirosystems/clarinet) and the [Clarity VSCode Extension](https://marketplace.visualstudio.com/items?itemName=HiroSystems.clarity-lsp)
+- Node.js 18+
+- npm (comes with Node)
+- [Clarinet CLI](https://github.com/hirosystems/clarinet) ≥ 1.10
+- A funded Stacks deployer (for testnet deployments)
 
-### Setup Development Environment
+### Install dependencies
 
-1. **Start Devnet in Hiro Platform**
+```bash
+npm install                 # installs workspace root deps (Turbo, etc.)
+cd clarity && npm install   # installs Clarinet TypeScript tooling
+cd ../front-end && npm install
+```
 
-   - Log into the [Hiro Platform](https://platform.hiro.so)
-   - Navigate to your project and start Devnet
-   - Copy your API key from either:
-     - The Devnet Stacks API URL: `https://api.platform.hiro.so/v1/ext/<YOUR-API-KEY>/stacks-blockchain-api`
-     - Or from https://platform.hiro.so/settings/api-keys
+### Environment setup
 
-2. **Configure Local Environment**
+Front-end requires an `.env` file (see `front-end/.env.example`) with at minimum:
 
-   Git clone the project code to your local machine via HTTPS or SSH and navigate to the project root in your terminal.
+```env
+NEXT_PUBLIC_STACKS_NETWORK=testnet
+NEXT_PUBLIC_PLATFORM_HIRO_API_KEY=...   # optional for devnet helpers
+NEXT_PUBLIC_TESTNET_DEPLOYER=...        # principal that deployed contracts
+```
+
+Clarity deployments use `clarity/settings/Testnet.toml`—replace the mnemonic there if you deploy from a different wallet.
+
+### Run the dev servers
+
+```bash
+# 1. (optional) open a terminal for smart-contract checks
+cd clarity
+clarinet check
+
+# 2. start the Next.js app
+cd ../front-end
+npm run dev
+```
+
+Visit http://localhost:3000. Switch between devnet/testnet in the navbar and connect either the built-in devnet wallet switcher or your Stacks wallet extension.
+
+## Tests & tooling
+
+- **Clarity**: `cd clarity && npm test` (vitest + Clarinet SDK)
+- **Front-end**: currently no automated tests; rely on manual smoke testing.
+- **Formatting/Lint**: project uses ESLint/Prettier defaults; run `npm run lint` inside `front-end` if configured.
+
+## Deploying to testnet
+
+1. Fund the deployer from the [Stacks testnet faucet](https://explorer.hiro.so/sandbox/faucet?chain=testnet).
+2. Update `clarity/deployments/default.testnet-plan.yaml` if you need new contract names (Stacks does not allow overwriting).
+3. Apply the plan:
 
    ```bash
-   # Install Clarity project dependencies
    cd clarity
-   npm install
-
-   # Configure frontend environment
-   cd ../front-end
-   npm install
-   cp .env.example .env
+   clarinet deployments check -p deployments/default.testnet-plan.yaml
+   clarinet deployments apply --testnet -p deployments/default.testnet-plan.yaml
    ```
 
-   Add your Hiro Platform API key to the renamed `.env` file:
+4. Record the resulting principals and update front-end env variables (`NEXT_PUBLIC_TESTNET_*`).
+5. Restart `npm run dev` so the UI picks up the new configuration.
 
-   ```
-   NEXT_PUBLIC_PLATFORM_HIRO_API_KEY=your-api-key-here
-   ```
+## Production checklist
 
-3. **Start the Frontend Application**
+- [ ] Review contract logic with a qualified auditor.
+- [ ] Add unit/integration tests for both contracts and UI.
+- [ ] Harden wallet/post-condition handling for mainnet.
+- [ ] Mirror deployment plan for mainnet and update env vars accordingly.
 
-   Start the Next.js application from the front-end directory.
+## Additional resources
 
-   ```bash
-   npm run dev
-   ```
+- [Stacks docs](https://docs.stacks.co/)
+- [Clarinet manual](https://docs.hiro.so/clarinet/)
+- [Stacks Explorer](https://explorer.hiro.so/)
 
-   Visit [http://localhost:3000](http://localhost:3000) to view and interact with the marketplace. If Devnet is running, your test wallets will already be funded and connected for testing.
-
-## Testing with Devnet
-
-The Hiro Platform's Devnet is a sandboxed, personal blockchain environment for testing your dApps before deploying them to the testnet or mainnet. Each time you start a new Devnet, it will reset the blockchain state and deploy your project contracts from scratch.
-
-This is useful because deployments to the blockchain are permanent and cannot be undone. Ensure you have tested your contracts thoroughly in the Devnet before promoting them to the testnet or mainnet!
-
-### 1. Start Devnet and Deploy Contracts
-
-1. Open your project in the Hiro Platform
-2. Click "Start Devnet" to initialize your testing environment (the contracts will be automatically deployed per your deployment plan)
-3. You should see your contracts deployed and the initial NFT mints occur no later than block 45 in the Devnet dashboard
-
-### 2. Testing Smart Contract Functions
-
-Smart contract functions can be tested directly from your Platform dashboard.
-
-1. Select the Devnet tab to confirm that your contracts are deployed and Devnet is running
-2. Click "Interact with Devnet" and then "Call functions"
-3. Select your contract and the function you want to test from the dropdown menus
-4. Use one of the pre-funded devnet wallets as the caller and another as the recipient (if needed)
-5. Click "Call function" to execute the function, which will either succeed or fail based on the function's logic and the caller's permissions
-6. Once the function has been submitted, you can watch for the transaction to resolve on-chain in the Devnet dashboard and confirm that the function executed as expected
-
-Remember that any changes to the contracts will require restarting Devnet and redeploying the contracts!
-
-### 3. NFT Marketplace Integration Testing
-
-With Devnet running, you can test your front-end functionality and validate that it's working in the same way you just tested the NFT contract functions.
-
-1. Confirm that your Devnet is running in the Platform dashboard and `npm run dev` is running in the front-end directory
-2. Navigate to [http://localhost:3000](http://localhost:3000) to view and interact with the marketplace
-3. View your NFTs in the marketplace and test the minting, listing, and purchasing functionality using the pre-funded wallets.
-4. Navigate to the Devnet dashboard in the Platform to view the transactions as they are submitted and resolved on-chain.
-
-You do not need to restart Devnet to test changes to your front-end.
-
-## Next Steps
-
-Once you've thoroughly tested your dApp in Devnet and are confident in its functionality, you can proceed to testing on the Stacks Testnet before launching on Mainnet.
-
-### Moving to Testnet
-
-1. Use the [Stacks Testnet Faucet](https://explorer.hiro.so/sandbox/faucet?chain=testnet) to get test STX tokens
-2. Deploy your contracts to the Testnet using the Platform dashboard and your same deployment plan
-3. Test your application with real network conditions and transaction times
-4. Verify your contract interactions in the [Testnet Explorer](https://explorer.hiro.so/?chain=testnet)
-
-### Launching on Mainnet
-
-When you're ready to launch your NFT marketplace officially:
-
-1. Ensure you have real STX tokens for deployment and transaction costs
-2. Update your deployment configuration to target Mainnet
-3. Deploy your contracts through the Platform dashboard
-4. Update your frontend environment variables to point to Mainnet
-5. Launch your application and begin processing real transactions!
-
-Remember: Mainnet deployments are permanent and involve real cryptocurrency transactions. Double-check all contract code and frontend integrations before deploying to Mainnet.
+See the per-package READMEs for deeper details and architecture diagrams.

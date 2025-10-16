@@ -13,64 +13,34 @@ import {
   Container,
   Divider,
   Flex,
-  FormControl,
-  FormHelperText,
-  FormLabel,
   Heading,
-  HStack,
   Link,
-  NumberInput,
-  NumberInputField,
   SimpleGrid,
   Spinner,
   Stack,
   Text,
   useToast,
-  Wrap,
-  WrapItem,
 } from '@chakra-ui/react';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { useQuery } from '@tanstack/react-query';
 import { ListingCard } from '@/components/marketplace/ListingCard';
-import { Listing, fetchListings, listAsset } from '@/lib/marketplace/operations';
+import { Listing, fetchListings } from '@/lib/marketplace/operations';
 import { useNetwork } from '@/lib/use-network';
 import { useCurrentAddress } from '@/hooks/useCurrentAddress';
 import { useDevnetWallet } from '@/lib/devnet-wallet-context';
 import { executeContractCall, openContractCall, shouldUseDirectCall } from '@/lib/contract-utils';
-import { getNftContract } from '@/constants/contracts';
-import { toMicroAmount } from '@/lib/pool/operations';
 import { getExplorerLink } from '@/utils/explorer-links';
 import { useNftHoldings, useGetTxId } from '@/hooks/useNftHoldings';
 import { mintFunnyDogNFT } from '@/lib/nft/operations';
 import { formatValue } from '@/lib/clarity-utils';
 import { NftCard } from '@/components/marketplace/NftCard';
 
-const MICROSTX_IN_STX = 1_000_000;
-
-const extractTokenId = (value: any): number | null => {
-  if (!value) return null;
-  if (typeof value.repr === 'string') {
-    const reprMatch = /u(\d+)/.exec(value.repr);
-    if (reprMatch) return Number(reprMatch[1]);
-  }
-  if (typeof value.hex === 'string') {
-    const formatted = formatValue(value.hex);
-    const hexMatch = /u(\d+)/.exec(formatted);
-    if (hexMatch) return Number(hexMatch[1]);
-  }
-  return null;
-};
-
 export default function MarketplacePage() {
   const toast = useToast();
   const network = useNetwork();
   const currentAddress = useCurrentAddress();
   const { currentWallet } = useDevnetWallet();
-
-  const [listTokenId, setListTokenId] = useState('');
-  const [listPrice, setListPrice] = useState('');
-  const [isListing, setIsListing] = useState(false);
-  const [pendingListTxId, setPendingListTxId] = useState<string | null>(null);
+  const directCallEnabled = shouldUseDirectCall();
   const [lastMintTxId, setLastMintTxId] = useState<string | null>(null);
 
   const {
@@ -94,8 +64,10 @@ export default function MarketplacePage() {
 
   useEffect(() => {
     if (!mintTxData) return;
-    // @ts-ignore - tx_status available on API responses
-    const status = mintTxData.tx_status;
+    const status =
+      typeof mintTxData === 'object' && mintTxData !== null && 'tx_status' in mintTxData
+        ? (mintTxData.tx_status as string | undefined)
+        : undefined;
     if (status === 'success') {
       toast({
         title: 'Mint confirmed',
@@ -116,32 +88,7 @@ export default function MarketplacePage() {
     }
   }, [mintTxData, toast, refetchNftHoldings]);
 
-  const listingPriceMicro = useMemo(() => toMicroAmount(listPrice), [listPrice]);
-  const listTokenIdNumber = useMemo(() => {
-    const parsed = Number(listTokenId);
-    return Number.isFinite(parsed) ? parsed : Number.NaN;
-  }, [listTokenId]);
-
-  const nftContract = network ? getNftContract(network) : null;
-  const walletHoldings = nftHoldings?.results ?? [];
-  const walletNftTokens = useMemo(() => {
-    if (!nftContract) return [] as number[];
-    const contractId = `${nftContract.contractAddress}.${nftContract.contractName}`;
-    const tokenIds = new Set<number>();
-    walletHoldings.forEach((holding) => {
-      if (!holding.asset_identifier.startsWith(`${contractId}::`)) return;
-      const tokenId = extractTokenId(holding.value);
-      if (tokenId !== null) tokenIds.add(tokenId);
-    });
-    return Array.from(tokenIds).sort((a, b) => a - b);
-  }, [walletHoldings, nftContract]);
-
-  const isListDisabled =
-    !currentAddress ||
-    !Number.isFinite(listTokenIdNumber) ||
-    listTokenIdNumber < 0 ||
-    listingPriceMicro <= 0 ||
-    isListing;
+  const walletHoldings = useMemo(() => nftHoldings?.results ?? [], [nftHoldings]);
 
   const refreshAll = useCallback(() => {
     void refetchListings();
@@ -150,123 +97,13 @@ export default function MarketplacePage() {
     }
   }, [refetchListings, refetchNftHoldings, currentAddress]);
 
-  const handleCreateListing = useCallback(async () => {
-    if (!network) return;
-
-    if (!currentAddress) {
-      toast({
-        title: 'Connect wallet',
-        description: 'Please connect a wallet before listing NFTs.',
-        status: 'warning',
-      });
-      return;
-    }
-
-    if (!nftContract) {
-      toast({
-        title: 'NFT contract unavailable',
-        description: 'Unable to resolve NFT contract for the current network.',
-        status: 'error',
-      });
-      return;
-    }
-
-    if (!Number.isFinite(listTokenIdNumber) || listTokenIdNumber < 0) {
-      toast({
-        title: 'Invalid token',
-        description: 'Select a valid NFT token ID to list.',
-        status: 'warning',
-      });
-      return;
-    }
-
-    if (listingPriceMicro <= 0) {
-      toast({
-        title: 'Invalid price',
-        description: 'Enter a listing price greater than zero.',
-        status: 'warning',
-      });
-      return;
-    }
-
-    setIsListing(true);
-    setPendingListTxId(null);
-
-    const txOptions = listAsset(network, {
-      sender: currentAddress,
-      nftContractAddress: nftContract.contractAddress,
-      nftContractName: nftContract.contractName,
-      tokenId: listTokenIdNumber,
-      price: listingPriceMicro,
-    });
-
-    try {
-      if (shouldUseDirectCall()) {
-        if (!currentWallet) {
-          throw new Error('Devnet wallet is not configured');
-        }
-        const { txid } = await executeContractCall(txOptions, currentWallet);
-        setPendingListTxId(txid);
-        toast({
-          title: 'Listing submitted',
-          description: `Broadcast listing transaction ${txid}`,
-          status: 'info',
-        });
-        setListTokenId('');
-        setListPrice('');
-        refreshAll();
-        return;
-      }
-
-      await openContractCall({
-        ...txOptions,
-        onFinish: ({ txId }) => {
-          setPendingListTxId(txId);
-          toast({
-            title: 'Listing submitted',
-            description: 'NFT listed on the marketplace.',
-            status: 'success',
-          });
-          setListTokenId('');
-          setListPrice('');
-          refreshAll();
-        },
-        onCancel: () => {
-          toast({
-            title: 'Listing cancelled',
-            description: 'You cancelled the listing transaction.',
-            status: 'info',
-          });
-        },
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: 'Listing failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-      });
-    } finally {
-      setIsListing(false);
-    }
-  }, [
-    network,
-    currentAddress,
-    nftContract,
-    listTokenIdNumber,
-    listingPriceMicro,
-    currentWallet,
-    toast,
-    refreshAll,
-  ]);
-
   const handleMintNFT = useCallback(async () => {
     if (!network || !currentAddress) return;
 
     try {
       const txOptions = mintFunnyDogNFT(network, currentAddress);
 
-      if (shouldUseDirectCall()) {
+      if (directCallEnabled) {
         const { txid } = await executeContractCall(txOptions, currentWallet);
         setLastMintTxId(txid);
         toast({
@@ -305,7 +142,7 @@ export default function MarketplacePage() {
         status: 'error',
       });
     }
-  }, [network, currentAddress, currentWallet, toast, refetchNftHoldings]);
+  }, [network, currentAddress, currentWallet, toast, refetchNftHoldings, directCallEnabled]);
 
   return (
     <Container maxW="container.xl" py={8}>
