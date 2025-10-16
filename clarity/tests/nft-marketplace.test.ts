@@ -7,7 +7,7 @@ import {
   expect,
 } from "./helpers/marketplace.helpers";
 import { ERROR_CODES, PRICES } from "./helpers/constants";
-import { signers, balance, utils } from "./helpers/test-setup";
+import { signers, balance, utils } from "./helpers/utils/test-setup";
 
 describe("NFT Marketplace Integration Tests", () => {
   const { deployer, alice, bob, charlie } = signers();

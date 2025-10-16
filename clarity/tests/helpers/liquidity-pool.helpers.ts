@@ -1,9 +1,6 @@
 import { Cl } from "@stacks/transactions";
-import { expect } from "vitest";
-import { CONTRACTS, ERROR_CODES, POOL_CONSTANTS } from "./constants";
-import { signers } from "./test-setup";
-
-declare const simnet: any;
+import { CONTRACTS, POOL_CONSTANTS } from "./constants";
+import { signers, contract, balance, utils } from "./utils/test-setup";
 
 // Test accounts
 export const getAccounts = () => signers();
@@ -11,8 +8,8 @@ export const getAccounts = () => signers();
 // Token helpers
 export const token = {
   mint: (caller?: string) => {
-    const { deployer } = getAccounts();
-    return simnet.callPublicFn(
+    const { deployer } = signers();
+    return contract.call(
       CONTRACTS.STRATEGY_TOKEN,
       "mint",
       [],
@@ -21,27 +18,25 @@ export const token = {
   },
 
   getBalance: (address: string, caller?: string) => {
-    const { alice } = getAccounts();
-    return simnet.callReadOnlyFn(
+    return contract.readOnly(
       CONTRACTS.STRATEGY_TOKEN,
       "get-balance",
       [Cl.principal(address)],
-      caller || alice
+      caller
     );
   },
 
   getFeeBalance: (caller?: string) => {
-    const { alice } = getAccounts();
-    return simnet.callReadOnlyFn(
+    return contract.readOnly(
       CONTRACTS.STRATEGY_TOKEN,
       "get-fee-balance",
       [],
-      caller || alice
+      caller
     );
   },
 
   transfer: (amount: number, from: string, to: string, caller: string) => {
-    return simnet.callPublicFn(
+    return contract.call(
       CONTRACTS.STRATEGY_TOKEN,
       "transfer",
       [
@@ -58,8 +53,8 @@ export const token = {
 // Pool helpers
 export const pool = {
   init: (caller?: string) => {
-    const { deployer } = getAccounts();
-    return simnet.callPublicFn(
+    const { deployer } = signers();
+    return contract.call(
       CONTRACTS.LIQUIDITY_POOL,
       "init",
       [],
@@ -68,8 +63,8 @@ export const pool = {
   },
 
   updateReserves: (caller?: string) => {
-    const { deployer } = getAccounts();
-    return simnet.callPublicFn(
+    const { deployer } = signers();
+    return contract.call(
       CONTRACTS.LIQUIDITY_POOL,
       "update-reserves",
       [],
@@ -78,38 +73,35 @@ export const pool = {
   },
 
   getReserves: (caller?: string) => {
-    const { alice } = getAccounts();
-    return simnet.callReadOnlyFn(
+    return contract.readOnly(
       CONTRACTS.LIQUIDITY_POOL,
       "get-reserves",
       [],
-      caller || alice
+      caller
     );
   },
 
   getStatus: (caller?: string) => {
-    const { alice } = getAccounts();
-    return simnet.callReadOnlyFn(
+    return contract.readOnly(
       CONTRACTS.LIQUIDITY_POOL,
       "get-status",
       [],
-      caller || alice
+      caller
     );
   },
 
   getToken: (caller?: string) => {
-    const { alice } = getAccounts();
-    const { deployer } = getAccounts();
-    return simnet.callReadOnlyFn(
+    const { deployer } = signers();
+    return contract.readOnly(
       CONTRACTS.LIQUIDITY_POOL,
       "get-token",
       [],
-      caller || alice
+      caller
     );
   },
 
   swapStxForRather: (amountIn: number, minOut: number, caller: string) => {
-    return simnet.callPublicFn(
+    return contract.call(
       CONTRACTS.LIQUIDITY_POOL,
       "swap-stx-for-rather",
       [Cl.uint(amountIn), Cl.uint(minOut)],
@@ -118,7 +110,7 @@ export const pool = {
   },
 
   swapRatherForStx: (amountIn: number, minOut: number, caller: string) => {
-    return simnet.callPublicFn(
+    return contract.call(
       CONTRACTS.LIQUIDITY_POOL,
       "swap-rather-for-stx",
       [Cl.uint(amountIn), Cl.uint(minOut)],
@@ -127,95 +119,31 @@ export const pool = {
   },
 
   getQuoteStxForRather: (amountIn: number, caller?: string) => {
-    const { alice } = getAccounts();
-    return simnet.callReadOnlyFn(
+    return contract.readOnly(
       CONTRACTS.LIQUIDITY_POOL,
       "get-quote-stx-for-rather",
       [Cl.uint(amountIn)],
-      caller || alice
+      caller
     );
   },
 
   getQuoteRatherForStx: (amountIn: number, caller?: string) => {
-    const { alice } = getAccounts();
-    return simnet.callReadOnlyFn(
+    return contract.readOnly(
       CONTRACTS.LIQUIDITY_POOL,
       "get-quote-rather-for-stx",
       [Cl.uint(amountIn)],
-      caller || alice
+      caller
     );
   },
 
   getPoolContract: () => {
-    const { deployer } = getAccounts();
+    const { deployer } = signers();
     return `${deployer}.${CONTRACTS.LIQUIDITY_POOL}`;
   },
 };
 
-// Balance helpers
-export const balance = {
-  getSTX: (address: string): bigint => {
-    return simnet.getAssetsMap().get("STX")?.get(address) || 0n;
-  },
+// Re-export the balance module from test-setup
+export { balance };
 
-  transferSTX: (amount: number, from: string, to: string, caller?: string) => {
-    return simnet.callPublicFn(
-      "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.pox-4",
-      "stx-transfer", 
-      [Cl.uint(amount), Cl.principal(from), Cl.principal(to)],
-      caller || from
-    );
-  },
-};
-
-// Utility helpers
-export const utils = {
-  mineBlocks: (count: number) => {
-    simnet.mineEmptyBlocks(count);
-  },
-
-  calculateSwapOutput: (
-    amountIn: number,
-    reserveIn: number,
-    reserveOut: number,
-    feeInBps: number = 0
-  ): number => {
-    const netAmountIn = feeInBps > 0
-      ? Math.floor((amountIn * (POOL_CONSTANTS.BPS_DIVISOR - feeInBps)) / POOL_CONSTANTS.BPS_DIVISOR)
-      : amountIn;
-    return Math.floor((netAmountIn * reserveOut) / (reserveIn + netAmountIn));
-  },
-
-  calculateFee: (amount: number, feeInBps: number): number => {
-    return Math.floor((amount * feeInBps) / POOL_CONSTANTS.BPS_DIVISOR);
-  },
-};
-
-// Common assertions
-export const assertions = {
-  expectOk: (result: any, value: any) => {
-    expect(result).toEqual(Cl.ok(value));
-  },
-
-  expectErr: (result: any, code: number) => {
-    expect(result).toEqual(Cl.error(Cl.uint(code)));
-  },
-
-  expectSome: (result: any, value: any) => {
-    expect(result).toEqual(Cl.some(value));
-  },
-
-  expectNone: (result: any) => {
-    expect(result).toEqual(Cl.none());
-  },
-
-  expectReserves: (result: any, stx: number, rather: number) => {
-    expect(result).toEqual(Cl.tuple({
-      stx: Cl.uint(stx),
-      rather: Cl.uint(rather),
-    }));
-  },
-};
-
-// Re-export the expect function for convenience
-export { expect } from "vitest";
+// Re-export utility functions and assertions
+export { utils, assertions, expect } from "./utils/test-setup";

@@ -1,15 +1,12 @@
 import { Cl } from "@stacks/transactions";
-import { expect } from "vitest";
-import { CONTRACTS, ERROR_CODES, PRICES } from "./constants";
-import { balance, utils, signers, testData, assertions } from "./test-setup";
-
-declare const simnet: any;
+import { CONTRACTS } from "./constants";
+import { signers, contract } from "./utils/test-setup";
 
 // NFT helpers
 export const nft = {
   mint: (to: string, caller?: string) => {
     const { deployer } = signers();
-    return simnet.callPublicFn(
+    return contract.call(
       CONTRACTS.NFT,
       "mint",
       [Cl.principal(to)],
@@ -18,7 +15,7 @@ export const nft = {
   },
 
   getOwner: (tokenId: number, caller: string) => {
-    return simnet.callReadOnlyFn(
+    return contract.readOnly(
       CONTRACTS.NFT,
       "get-owner",
       [Cl.uint(tokenId)],
@@ -27,7 +24,7 @@ export const nft = {
   },
 
   transfer: (tokenId: number, from: string, to: string, caller: string) => {
-    return simnet.callPublicFn(
+    return contract.call(
       CONTRACTS.NFT,
       "transfer",
       [Cl.uint(tokenId), Cl.principal(from), Cl.principal(to)],
@@ -40,7 +37,7 @@ export const nft = {
 export const marketplace = {
   list: (tokenId: number, price: number, seller: string) => {
     const { deployer } = signers();
-    return simnet.callPublicFn(
+    return contract.call(
       CONTRACTS.MARKETPLACE,
       "list-asset",
       [
@@ -53,7 +50,7 @@ export const marketplace = {
 
   buy: (listingId: number, buyer: string) => {
     const { deployer } = signers();
-    return simnet.callPublicFn(
+    return contract.call(
       CONTRACTS.MARKETPLACE,
       "fulfill-listing-stx",
       [Cl.uint(listingId), Cl.principal(`${deployer}.${CONTRACTS.NFT}`)],
@@ -63,7 +60,7 @@ export const marketplace = {
 
   cancel: (listingId: number, caller: string) => {
     const { deployer } = signers();
-    return simnet.callPublicFn(
+    return contract.call(
       CONTRACTS.MARKETPLACE,
       "cancel-listing",
       [Cl.uint(listingId), Cl.principal(`${deployer}.${CONTRACTS.NFT}`)],
@@ -71,8 +68,8 @@ export const marketplace = {
     );
   },
 
-  getListing: (listingId: number, caller: string) => {
-    return simnet.callReadOnlyFn(
+  getListing: (listingId: number, caller?: string) => {
+    return contract.readOnly(
       CONTRACTS.MARKETPLACE,
       "get-listing",
       [Cl.uint(listingId)],
@@ -81,26 +78,24 @@ export const marketplace = {
   },
 
   getFloorPrice: (caller?: string) => {
-    const { deployer, alice } = signers();
-    return simnet.callReadOnlyFn(
+    const { deployer } = signers();
+    return contract.readOnly(
       CONTRACTS.MARKETPLACE,
       "get-floor-price",
       [Cl.principal(`${deployer}.${CONTRACTS.NFT}`)],
-      caller || alice
+      caller
     );
   },
 
   getNonce: (caller?: string) => {
-    const { alice } = signers();
-    return simnet.callReadOnlyFn(
+    return contract.readOnly(
       CONTRACTS.MARKETPLACE,
       "get-listing-nonce",
       [],
-      caller || alice
+      caller
     );
   },
 };
 
 // Re-export functions for convenience
-export { expect } from "vitest";
-export { assertions } from "./test-setup";
+export { expect, assertions } from "./utils/test-setup";
