@@ -83,7 +83,7 @@ export const NftCard = ({ nft }: NftCardProps) => {
 
       await openContractCall({
         ...txOptions,
-        onFinish: (data) => {
+        onFinish: (_data) => {
           toast({
             title: 'Success',
             description: 'Listing created successfully!',

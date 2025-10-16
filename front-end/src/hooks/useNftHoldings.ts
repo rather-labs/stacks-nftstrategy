@@ -1,6 +1,9 @@
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
-import { NonFungibleTokenHoldingsList } from '@stacks/stacks-blockchain-api-types';
-import { TransactionsApi } from '@stacks/blockchain-api-client';
+import {
+  NonFungibleTokenHoldingsList,
+  Transaction,
+  MempoolTransaction,
+} from '@stacks/stacks-blockchain-api-types';
 import { getApi } from '@/lib/stacks-api';
 import { useNetwork } from '@/lib/use-network';
 
@@ -31,18 +34,19 @@ export const useNftHoldings = (address?: string): UseQueryResult<NonFungibleToke
 // Continuously query a transaction by txId until it is confirmed
 export const useGetTxId = (txId: string) => {
   const network = useNetwork();
-  return useQuery({
+  return useQuery<Transaction | MempoolTransaction>({
     queryKey: ['nftHoldingsByTxId', txId],
     queryFn: async () => {
       if (!txId) throw new Error('txId is required');
       if (!network) throw new Error('Network is required');
       const api = getApi(network).transactionsApi;
-      return api.getTransactionById({ txId });
+      const response = await api.getTransactionById({ txId });
+      return response as unknown as Transaction | MempoolTransaction;
     },
     enabled: !!txId && !!network,
-    refetchInterval: (data) => {
-      // @ts-expect-error
-      return data?.tx_status === 'pending' ? 5000 : false;
+    refetchInterval: (query: { state: { data?: Transaction | MempoolTransaction } }) => {
+      const status = query.state.data?.tx_status as string | undefined;
+      return status === 'pending' ? 5000 : false;
     },
     retry: false,
     refetchIntervalInBackground: true,

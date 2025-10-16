@@ -10,17 +10,17 @@ plan:
       transactions:
         - requirement-publish:
             contract-id: SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait
-            remap-sender: ST4FJN6KJS2HZ2D7YP0CS54VSM7WAPV93K1E4DQJ
+            remap-sender: ST2YY2DYVA8Q92SBXFVAS4A4MAEWCWXS1SZQ9GZRX
             remap-principals:
-              SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9: ST4FJN6KJS2HZ2D7YP0CS54VSM7WAPV93K1E4DQJ
+              SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9: ST2YY2DYVA8Q92SBXFVAS4A4MAEWCWXS1SZQ9GZRX
             cost: 4680
             path: "./.cache/requirements/SP2PABAF9FTAJYNFZH93XENAJ8FVY99RRM50D2JG9.nft-trait.clar"
             clarity-version: 1
         - requirement-publish:
             contract-id: SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE.sip-010-trait-ft-standard
-            remap-sender: ST4FJN6KJS2HZ2D7YP0CS54VSM7WAPV93K1E4DQJ
+            remap-sender: ST2YY2DYVA8Q92SBXFVAS4A4MAEWCWXS1SZQ9GZRX
             remap-principals:
-              SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE: ST4FJN6KJS2HZ2D7YP0CS54VSM7WAPV93K1E4DQJ
+              SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE: ST2YY2DYVA8Q92SBXFVAS4A4MAEWCWXS1SZQ9GZRX
             cost: 8400
             path: "./.cache/requirements/SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE.sip-010-trait-ft-standard.clar"
             clarity-version: 1
@@ -29,7 +29,7 @@ plan:
       transactions:
         - contract-publish:
             contract-name: liquidity-pool-trait
-            expected-sender: ST4FJN6KJS2HZ2D7YP0CS54VSM7WAPV93K1E4DQJ
+            expected-sender: ST2YY2DYVA8Q92SBXFVAS4A4MAEWCWXS1SZQ9GZRX
             cost: 1620
             path: contracts/traits/liquidity-pool-trait.clar
             anchor-block-only: true
@@ -39,29 +39,29 @@ plan:
       transactions:
         - contract-publish:
             contract-name: funny-dog
-            expected-sender: ST4FJN6KJS2HZ2D7YP0CS54VSM7WAPV93K1E4DQJ
+            expected-sender: ST2YY2DYVA8Q92SBXFVAS4A4MAEWCWXS1SZQ9GZRX
             cost: 21570
             path: contracts/funny-dog.clar
             anchor-block-only: true
             clarity-version: 3
         - contract-publish:
             contract-name: nft-marketplace
-            expected-sender: ST4FJN6KJS2HZ2D7YP0CS54VSM7WAPV93K1E4DQJ
+            expected-sender: ST2YY2DYVA8Q92SBXFVAS4A4MAEWCWXS1SZQ9GZRX
             cost: 49740
             path: contracts/nft-marketplace.clar
             anchor-block-only: true
             clarity-version: 3
         - contract-publish:
             contract-name: strategy-token
-            expected-sender: ST4FJN6KJS2HZ2D7YP0CS54VSM7WAPV93K1E4DQJ
-            cost: 47720
+            expected-sender: ST2YY2DYVA8Q92SBXFVAS4A4MAEWCWXS1SZQ9GZRX
+            cost: 51450
             path: contracts/strategy-token.clar
             anchor-block-only: true
             clarity-version: 3
         - contract-publish:
             contract-name: liquidity-pool
-            expected-sender: ST4FJN6KJS2HZ2D7YP0CS54VSM7WAPV93K1E4DQJ
-            cost: 56980
+            expected-sender: ST2YY2DYVA8Q92SBXFVAS4A4MAEWCWXS1SZQ9GZRX
+            cost: 62040
             path: contracts/liquidity-pool.clar
             anchor-block-only: true
             clarity-version: 3

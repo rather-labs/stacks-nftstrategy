@@ -51,8 +51,7 @@ export const ListingCard = ({ listing, onRefresh }: ListingCardProps) => {
   const { data: txData } = useGetTxId(purchaseTxId || '');
 
   useEffect(() => {
-    // @ts-ignore
-    if (txData && txData.tx_status === 'success') {
+    if (txData?.tx_status === 'success') {
       toast({
         title: 'Purchase Confirmed',
         description: 'Your purchase has been confirmed on the blockchain',
@@ -60,8 +59,7 @@ export const ListingCard = ({ listing, onRefresh }: ListingCardProps) => {
       });
       onRefresh();
       setPurchaseTxId(null);
-      // @ts-ignore
-    } else if (txData && txData.tx_status === 'abort_by_response') {
+    } else if (txData?.tx_status === 'abort_by_response') {
       toast({
         title: 'Purchase Failed',
         description: 'The transaction was aborted',
@@ -124,7 +122,7 @@ export const ListingCard = ({ listing, onRefresh }: ListingCardProps) => {
 
       await openContractCall({
         ...txOptions,
-        onFinish: (data) => {
+        onFinish: (_data) => {
           toast({
             title: 'Success',
             description: 'Listing cancelled successfully',

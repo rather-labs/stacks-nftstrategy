@@ -2,8 +2,7 @@
 
 import { Box, Container, Flex, Link, IconButton, useColorMode, Image } from '@chakra-ui/react';
 import { MoonIcon, SunIcon } from '@chakra-ui/icons';
-import { useContext, useCallback, useMemo } from 'react';
-import { HiroWalletContext } from './HiroWalletProvider';
+import { useMemo } from 'react';
 import { useDevnetWallet } from '@/lib/devnet-wallet-context';
 import { DevnetWalletButton } from './DevnetWalletButton';
 import { ConnectWalletButton } from './ConnectWallet';
@@ -13,7 +12,6 @@ import { useCurrentAddress } from '@/hooks/useCurrentAddress';
 import { getStrategyContract } from '@/constants/contracts';
 
 export const Navbar = () => {
-  const { isWalletConnected } = useContext(HiroWalletContext);
   const { currentWallet, wallets, setCurrentWallet } = useDevnetWallet();
   const { colorMode, toggleColorMode } = useColorMode();
   const network = useNetwork();
@@ -27,20 +25,6 @@ export const Navbar = () => {
   const showAdminLink =
     network !== 'testnet' ||
     (!!normalizedCurrent && !!normalizedDeployer && normalizedCurrent === normalizedDeployer);
-
-  const handleConnect = useCallback(async () => {
-    if (!isWalletConnected) {
-      try {
-        const { connect } = await import('@stacks/connect');
-        // In the latest API, connect() doesn't take appDetails directly
-        // It's now handled through the request method with forceWalletSelect option
-        await connect();
-        window.location.reload();
-      } catch (error) {
-        console.error('Failed to load @stacks/connect:', error);
-      }
-    }
-  }, [isWalletConnected]);
 
   return (
     <Box as="nav" bg="bg.surface" boxShadow="sm">

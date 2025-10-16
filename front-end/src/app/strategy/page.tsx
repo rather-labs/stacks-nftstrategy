@@ -52,6 +52,7 @@ export default function StrategyDashboard() {
   const network = useNetwork();
   const currentAddress = useCurrentAddress();
   const { currentWallet } = useDevnetWallet();
+  const directCallEnabled = shouldUseDirectCall();
 
   const [pendingBuyTxId, setPendingBuyTxId] = useState<string | null>(null);
   const [pendingBurnTxId, setPendingBurnTxId] = useState<string | null>(null);
@@ -141,7 +142,7 @@ export default function StrategyDashboard() {
     );
 
     try {
-      if (shouldUseDirectCall()) {
+      if (directCallEnabled) {
         if (!currentWallet) {
           throw new Error('Devnet wallet is not configured');
         }
@@ -185,7 +186,7 @@ export default function StrategyDashboard() {
     } finally {
       setIsBuyingFloor(false);
     }
-  }, [network, metrics, currentAddress, toast, currentWallet, refreshAll, shouldUseDirectCall]);
+  }, [network, metrics, currentAddress, toast, currentWallet, refreshAll, directCallEnabled]);
 
   const handleBurn = useCallback(async () => {
     if (!network) return;
@@ -203,7 +204,7 @@ export default function StrategyDashboard() {
     const txOptions = buildBuyTokenAndBurnTx(network);
 
     try {
-      if (shouldUseDirectCall()) {
+      if (directCallEnabled) {
         if (!currentWallet) {
           throw new Error('Devnet wallet is not configured');
         }
@@ -247,7 +248,7 @@ export default function StrategyDashboard() {
     } finally {
       setIsBurning(false);
     }
-  }, [network, currentAddress, toast, currentWallet, refreshAll, shouldUseDirectCall]);
+  }, [network, currentAddress, toast, currentWallet, refreshAll, directCallEnabled]);
 
   if (!network) {
     return (
@@ -259,7 +260,6 @@ export default function StrategyDashboard() {
 
   const marketplaceHoldingCount = strategyListings.length;
   const feeBalanceStx = metrics ? metrics.feeBalance / MICROSTX_IN_STX : 0;
-  const stxBalance = metrics ? metrics.stxBalance / MICROSTX_IN_STX : 0;
   const burnableStx = metrics
     ? Math.max(metrics.stxBalance - metrics.feeBalance, 0) / MICROSTX_IN_STX
     : 0;
