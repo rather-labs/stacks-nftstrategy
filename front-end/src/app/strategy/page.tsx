@@ -279,7 +279,7 @@ export default function StrategyDashboard() {
       <VStack align="stretch" spacing={8}>
         <Stack spacing={2}>
           <Heading size="lg">Strategy Dashboard</Heading>
-          <Text color="gray.600">
+          <Text color="text.secondary">
             Monitor strategy treasury, marketplace floor, and recent execution on Stacks testnet.
           </Text>
         </Stack>
@@ -293,21 +293,21 @@ export default function StrategyDashboard() {
                   <StatNumber>
                     {metricsLoading ? '—' : `${feeBalanceStx.toFixed(3)} STX`}
                   </StatNumber>
-                  <StatHelpText mt={1} color="gray.500">
+                  <StatHelpText mt={1} color="text.tertiary">
                     Portion of the strategy STX reserved for NFT purchases.
                   </StatHelpText>
                 </Stat>
                 <Stat>
                   <StatLabel>Burnable Balance</StatLabel>
                   <StatNumber>{metricsLoading ? '—' : `${burnableStx.toFixed(3)} STX`}</StatNumber>
-                  <StatHelpText mt={1} color="gray.500">
+                  <StatHelpText mt={1} color="text.tertiary">
                     Total STX accrued on NFT sales.
                   </StatHelpText>
                 </Stat>
                 {pendingBurnTxId && (
                   <Link
                     fontSize="sm"
-                    color="blue.500"
+                    color="link.primary"
                     href={getExplorerLink(pendingBurnTxId, network)}
                     isExternal
                   >
@@ -332,13 +332,13 @@ export default function StrategyDashboard() {
                   </StatNumber>
                 </Stat>
                 {metrics?.floorListing && (
-                  <Text fontSize="sm" color="gray.600">
+                  <Text fontSize="sm" color="text.secondary">
                     Token #{metrics.floorListing.tokenId} by{' '}
                     {metrics.floorListing.maker.slice(0, 6)}…
                   </Text>
                 )}
                 <Stack spacing={2}>
-                  <Text fontSize="sm" color="gray.600">
+                  <Text fontSize="sm" color="text.secondary">
                     Progress toward next floor purchase
                   </Text>
                   <Progress
@@ -348,7 +348,7 @@ export default function StrategyDashboard() {
                     borderRadius="full"
                     isIndeterminate={metricsLoading}
                   />
-                  <Text fontSize="xs" color="gray.500">
+                  <Text fontSize="xs" color="text.tertiary">
                     {metricsLoading
                       ? 'Calculating progress…'
                       : floorPriceStx
@@ -359,7 +359,7 @@ export default function StrategyDashboard() {
                 {pendingBuyTxId && (
                   <Link
                     fontSize="sm"
-                    color="blue.500"
+                    color="link.primary"
                     href={getExplorerLink(pendingBuyTxId, network)}
                     isExternal
                   >
@@ -376,7 +376,7 @@ export default function StrategyDashboard() {
                 <StatLabel>Strategy Principal</StatLabel>
                 <StatNumber fontSize="lg">
                   <Link
-                    color="blue.500"
+                    color="link.primary"
                     href={getAccountExplorerLink(strategyPrincipal, network)}
                     isExternal
                   >
@@ -393,7 +393,7 @@ export default function StrategyDashboard() {
             <Flex justify="space-between" align="center">
               <Stack spacing={2}>
                 <Heading size="md">Strategy Actions</Heading>
-                <Text fontSize="sm" color="gray.600">
+                <Text fontSize="sm" color="text.secondary">
                   Execute the automated steps directly from your connected wallet.
                 </Text>
               </Stack>
@@ -407,7 +407,7 @@ export default function StrategyDashboard() {
                   Buy Floor &amp; Relist
                 </Button>
                 <Button
-                  colorScheme="orange"
+                  colorScheme="red"
                   variant="outline"
                   onClick={handleBurn}
                   isLoading={isBurning}
@@ -420,7 +420,7 @@ export default function StrategyDashboard() {
           </CardHeader>
           <Divider />
           <CardBody>
-            <Text fontSize="sm" color="gray.600">
+            <Text fontSize="sm" color="text.secondary">
               The buy action consumes treasury STX to purchase the lowest-priced Funny Dog NFT and
               relists it at a premium. The burn action routes available STX through the liquidity
               pool, acquires RATHER, and burns it to reduce supply.
@@ -447,7 +447,7 @@ export default function StrategyDashboard() {
                   <Spinner />
                 </Center>
               ) : marketplaceHoldingCount === 0 ? (
-                <Text fontSize="sm" color="gray.600">
+                <Text fontSize="sm" color="text.secondary">
                   Strategy contract does not hold any Funny Dog NFTs right now.
                 </Text>
               ) : (
@@ -459,7 +459,7 @@ export default function StrategyDashboard() {
                     const shortenedContract = `${assetContract.slice(0, 6)}…${assetContract.slice(-4)}`;
 
                     return (
-                      <Card key={`${listing.id}-${tokenId}`} bg="gray.50">
+                      <Card key={`${listing.id}-${tokenId}`} bg="bg.subtle">
                         <CardBody>
                           <VStack align="start" spacing={3}>
                             <TokenImage
@@ -471,7 +471,7 @@ export default function StrategyDashboard() {
                             <Tooltip label={assetContract} placement="top" hasArrow>
                               <Link
                                 fontSize="xs"
-                                color="blue.500"
+                                color="link.primary"
                                 href={contractHref}
                                 isExternal
                                 noOfLines={1}
@@ -496,7 +496,7 @@ export default function StrategyDashboard() {
               </Stack>
             </CardHeader>
             <Divider />
-            <Text fontSize="sm" color="gray.600" mt={3} textAlign="center" px={6}>
+            <Text fontSize="sm" color="text.secondary" mt={3} textAlign="center" px={6}>
               Tracks cumulative RATHER removed from circulation by the strategy.
             </Text>
             <CardBody>
@@ -514,7 +514,7 @@ export default function StrategyDashboard() {
                     <Stat>
                       <StatLabel>Supply Reduced</StatLabel>
                       <StatNumber>{`${burnedPercentage.toFixed(2)}%`}</StatNumber>
-                      <StatHelpText mt={1} color="gray.500">
+                      <StatHelpText mt={1} color="text.tertiary">
                         Initial supply{' '}
                         {totalSupplyRather.toLocaleString(undefined, {
                           maximumFractionDigits: 3,
@@ -525,7 +525,7 @@ export default function StrategyDashboard() {
                     </Stat>
                   </SimpleGrid>
                   <Stack spacing={2}>
-                    <Text fontSize="sm" color="gray.600">
+                    <Text fontSize="sm" color="text.secondary">
                       Burn progress against total supply
                     </Text>
                     <Progress
@@ -535,7 +535,7 @@ export default function StrategyDashboard() {
                       borderRadius="full"
                       isIndeterminate={burnStatsLoading}
                     />
-                    <Text fontSize="xs" color="gray.500">
+                    <Text fontSize="xs" color="text.tertiary">
                       {burnedPercentage > 0
                         ? `${burnedPercentage.toFixed(2)}% permanently removed from circulation.`
                         : 'No RATHER has been burned yet.'}

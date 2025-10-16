@@ -481,7 +481,7 @@ export default function AdminUtilitiesPage() {
       <VStack align="stretch" spacing={8}>
         <Stack spacing={2}>
           <Heading size="lg">Admin Utilities</Heading>
-          <Text color="gray.600">
+          <Text color="text.secondary">
             Bootstrap and maintain the strategy protocol. These actions require deployer privileges.
           </Text>
         </Stack>
@@ -501,7 +501,7 @@ export default function AdminUtilitiesPage() {
                   </Badge>
                   {mintStatusLoading && <Spinner size="sm" />}
                 </HStack>
-                <Text fontSize="sm" color="gray.600">
+                <Text fontSize="sm" color="text.secondary">
                   Mint the RATHER supply to the strategy contract once after deployment.
                 </Text>
               </Stack>
@@ -517,12 +517,12 @@ export default function AdminUtilitiesPage() {
                   {poolLoading && <Spinner size="sm" />}
                 </HStack>
                 {formattedReserves && poolInitialized ? (
-                  <Text fontSize="sm" color="gray.600">
+                  <Text fontSize="sm" color="text.secondary">
                     Reserves: {formattedReserves.stx.toFixed(3)} STX /{' '}
                     {formattedReserves.rather.toFixed(3)} RATHER
                   </Text>
                 ) : (
-                  <Text fontSize="sm" color="gray.600">
+                  <Text fontSize="sm" color="text.secondary">
                     Initialize the pool to enable swaps and protocol fee capture.
                   </Text>
                 )}
@@ -541,7 +541,7 @@ export default function AdminUtilitiesPage() {
               <Stack spacing={4}>
                 <Stack spacing={1}>
                   <Heading size="sm">Send STX</Heading>
-                  <Text fontSize="sm" color="gray.600">
+                  <Text fontSize="sm" color="text.secondary">
                     Transfer STX from the connected wallet to fund the strategy or collaborators.
                   </Text>
                 </Stack>
@@ -583,7 +583,7 @@ export default function AdminUtilitiesPage() {
                 {pendingSendTxId && (
                   <Link
                     fontSize="sm"
-                    color="blue.500"
+                    color="link.primary"
                     href={getExplorerLink(pendingSendTxId, network)}
                     isExternal
                   >
@@ -595,7 +595,7 @@ export default function AdminUtilitiesPage() {
               <Stack spacing={4}>
                 <Stack spacing={1}>
                   <Heading size="sm">Contract Maintenance</Heading>
-                  <Text fontSize="sm" color="gray.600">
+                  <Text fontSize="sm" color="text.secondary">
                     Run the one-time bootstrap actions for the strategy protocol.
                   </Text>
                 </Stack>
@@ -618,7 +618,7 @@ export default function AdminUtilitiesPage() {
                     Init Liquidity Pool
                   </Button>
                   <Button
-                    colorScheme="orange"
+                    colorScheme="teal"
                     variant="outline"
                     onClick={handleUpdateReserves}
                     isDisabled={isUpdateReservesDisabled}
@@ -630,7 +630,7 @@ export default function AdminUtilitiesPage() {
                 {pendingMintTxId && (
                   <Link
                     fontSize="sm"
-                    color="blue.500"
+                    color="link.primary"
                     href={getExplorerLink(pendingMintTxId, network)}
                     isExternal
                   >
@@ -640,7 +640,7 @@ export default function AdminUtilitiesPage() {
                 {pendingInitTxId && (
                   <Link
                     fontSize="sm"
-                    color="blue.500"
+                    color="link.primary"
                     href={getExplorerLink(pendingInitTxId, network)}
                     isExternal
                   >
@@ -650,7 +650,7 @@ export default function AdminUtilitiesPage() {
                 {pendingUpdateTxId && (
                   <Link
                     fontSize="sm"
-                    color="blue.500"
+                    color="link.primary"
                     href={getExplorerLink(pendingUpdateTxId, network)}
                     isExternal
                   >
@@ -658,7 +658,7 @@ export default function AdminUtilitiesPage() {
                   </Link>
                 )}
                 {poolInitialized && (
-                  <Text fontSize="xs" color="gray.500">
+                  <Text fontSize="xs" color="text.tertiary">
                     Pool already initialized. Further calls will fail on-chain.
                   </Text>
                 )}
