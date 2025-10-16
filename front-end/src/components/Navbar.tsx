@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Container, Flex, Link, IconButton, useColorMode } from '@chakra-ui/react';
+import { Box, Container, Flex, Link, IconButton, useColorMode, Image } from '@chakra-ui/react';
 import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { useContext, useCallback, useMemo } from 'react';
 import { HiroWalletContext } from './HiroWalletProvider';
@@ -46,27 +46,19 @@ export const Navbar = () => {
     <Box as="nav" bg="bg.surface" boxShadow="sm">
       <Container maxW="container.xl">
         <Flex justify="space-between" h={16} align="center">
-          <Flex align="center">
-            <Flex
-              bg="bg.surface"
-              borderRadius="md"
-              border="2px"
-              borderColor="border.strong"
-              letterSpacing="-.05em"
-              fontSize="xl"
-              fontWeight="bold"
-              w="52px"
-              h="52px"
-              justify="center"
-              align="center"
-              color="text.primary"
-              shrink="0"
-            >
-              /-/
-            </Flex>
-            <Link href="/" textDecoration="none">
-              <Box fontSize="lg" fontWeight="bold" color="text.primary" ml={4}>
-                Rather Strategy
+          <Flex align="center" gap={3}>
+            <Link href="/" _hover={{ opacity: 0.8 }} transition="opacity 0.2s">
+              <Image
+                src={colorMode === 'dark' ? '/images/rather-white.svg' : '/images/rather-dark.svg'}
+                alt="RATHER Labs"
+                height="35px"
+                width="auto"
+              />
+            </Link>
+            <Box height="30px" width="1px" bg="border.default" />
+            <Link href="/" textDecoration="none" _hover={{ opacity: 0.8 }}>
+              <Box fontSize="lg" fontWeight="bold" color="text.primary">
+                Strategy Protocol
               </Box>
             </Link>
           </Flex>
