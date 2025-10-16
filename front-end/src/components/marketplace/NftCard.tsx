@@ -7,8 +7,6 @@ import {
   CardBody,
   Card,
   Text,
-  Image,
-  Box,
   Input,
   Button,
   HStack,
@@ -16,7 +14,7 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { formatContractName } from '@/utils/formatting';
-import { getPlaceholderImage } from '@/utils/nft-utils';
+import { TokenImage } from '@/components/nft/TokenImage';
 import { useState } from 'react';
 import { listAsset } from '@/lib/marketplace/operations';
 import { shouldUseDirectCall, executeContractCall, openContractCall } from '@/lib/contract-utils';
@@ -125,20 +123,7 @@ export const NftCard = ({ nft }: NftCardProps) => {
         boxShadow="lg"
       >
         <CardBody padding={0}>
-          <Box aspectRatio={1} overflow="hidden">
-            {getPlaceholderImage(network, nftAssetContract, tokenId) != null ? (
-              <Image
-                src={getPlaceholderImage(network, nftAssetContract, tokenId) || ''}
-                alt={`NFT #${tokenId}`}
-                borderRadius="lg"
-                width="100%"
-                height="100%"
-                objectFit="cover"
-              />
-            ) : (
-              <Box width="100%" height="100%" bg="gray.100" borderRadius="lg" />
-            )}
-          </Box>
+          <TokenImage tokenId={tokenId} alt={`NFT #${tokenId}`} />
           <Stack spacing={2} p={4}>
             <Heading size="md">NFT #{tokenId}</Heading>
             <Text fontSize="sm" color="gray.500">
