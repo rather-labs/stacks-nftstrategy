@@ -12,8 +12,8 @@ export const ERROR_CODES = {
   UNAUTHORIZED: 2001,
   NFT_ASSET_MISMATCH: 2002,
   MAKER_TAKER_EQUAL: 2003,
-  
-  // NFT errors  
+
+  // NFT errors 
   NOT_OWNER: 101,
   SOLD_OUT: 300,
 } as const;

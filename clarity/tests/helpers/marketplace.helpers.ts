@@ -123,7 +123,7 @@ export const utils = {
   mineBlocks: (count: number) => {
     simnet.mineEmptyBlocks(count);
   },
-  
+
   stxToMicro: (stx: number): number => {
     return stx * PRICES.STX_TO_MICRO;
   },

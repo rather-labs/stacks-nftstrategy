@@ -9,7 +9,7 @@ import {
   assertions,
   expect,
 } from "./helpers/marketplace.helpers";
-import { ERROR_CODES, TEST_DATA, PRICES } from "./helpers/constants";
+import { ERROR_CODES, PRICES } from "./helpers/constants";
 
 describe("NFT Marketplace Integration Tests", () => {
   const { deployer, alice, bob, charlie } = getAccounts();
@@ -35,6 +35,9 @@ describe("NFT Marketplace Integration Tests", () => {
 
       expect(balance.getSTX(alice)).toBe(aliceBalanceBefore + BigInt(PRICES.DEFAULT_PRICE));
       expect(balance.getSTX(bob)).toBe(bobBalanceBefore - BigInt(PRICES.DEFAULT_PRICE));
+      
+      // Verify listing removed
+      assertions.expectNone(marketplace.getListing(0, bob).result);
     });
 
     it("should prevent self-purchases and unauthorized cancellations", () => {
@@ -61,33 +64,33 @@ describe("NFT Marketplace Integration Tests", () => {
 
       // Alice lists NFT at 2 STX
       nft.mint(alice);
-      marketplace.list(1, 2000000, alice);
+      marketplace.list(1, utils.stxToMicro(2), alice);
       assertions.expectOk(
         marketplace.getFloorPrice().result,
-        Cl.some(Cl.uint(2000000))
+        Cl.some(Cl.uint(utils.stxToMicro(2)))
       );
 
       // Bob lists cheaper NFT at 1.5 STX - floor price updates
       nft.mint(bob);
-      marketplace.list(2, 1500000, bob);
+      marketplace.list(2, utils.stxToMicro(1.5), bob);
       assertions.expectOk(
         marketplace.getFloorPrice().result,
-        Cl.some(Cl.uint(1500000))
+        Cl.some(Cl.uint(utils.stxToMicro(1.5)))
       );
 
       // Charlie lists even cheaper at 1 STX - floor price updates again
       nft.mint(charlie);
-      marketplace.list(3, PRICES.DEFAULT_PRICE, charlie);
+      marketplace.list(3, utils.stxToMicro(1), charlie);
       assertions.expectOk(
         marketplace.getFloorPrice().result,
-        Cl.some(Cl.uint(PRICES.DEFAULT_PRICE))
+        Cl.some(Cl.uint(utils.stxToMicro(1)))
       );
 
       // Someone buys the cheapest NFT - floor price should update
       marketplace.buy(2, alice); // Buy Charlie's NFT
       assertions.expectOk(
         marketplace.getFloorPrice().result,
-        Cl.some(Cl.uint(1500000))
+        Cl.some(Cl.uint(utils.stxToMicro(1.5)))
       );
     });
 
@@ -110,7 +113,11 @@ describe("NFT Marketplace Integration Tests", () => {
     it("should handle concurrent listings and sales", () => {
       // Multiple users mint and list
       const users = [alice, bob, charlie];
-      const prices = [3000000, 2000000, 2500000];
+      const prices = [
+        utils.stxToMicro(3),
+        utils.stxToMicro(2),
+        utils.stxToMicro(2.5)
+      ];
 
       users.forEach((user, i) => {
         nft.mint(user);
@@ -120,7 +127,7 @@ describe("NFT Marketplace Integration Tests", () => {
       // Floor price should be Bob's listing (cheapest)
       assertions.expectOk(
         marketplace.getFloorPrice().result,
-        Cl.some(Cl.uint(2000000))
+        Cl.some(Cl.uint(utils.stxToMicro(2)))
       );
 
       // Cross-trading scenario
@@ -130,7 +137,7 @@ describe("NFT Marketplace Integration Tests", () => {
       // Only Charlie's listing remains, floor price updates
       assertions.expectOk(
         marketplace.getFloorPrice().result,
-        Cl.some(Cl.uint(2500000))
+        Cl.some(Cl.uint(utils.stxToMicro(2.5)))
       );
 
       // Verify ownership transfers
@@ -153,7 +160,7 @@ describe("NFT Marketplace Integration Tests", () => {
       assertions.expectErr(marketplace.list(1, 0, alice).result, ERROR_CODES.PRICE_ZERO);
 
       // Cannot buy non-existent listing
-      assertions.expectErr(marketplace.buy(TEST_DATA.NON_EXISTENT_LISTING, bob).result, ERROR_CODES.UNKNOWN_LISTING);
+      assertions.expectErr(marketplace.buy(999, bob).result, ERROR_CODES.UNKNOWN_LISTING);
     });
 
     it("should maintain listing integrity", () => {
@@ -162,7 +169,7 @@ describe("NFT Marketplace Integration Tests", () => {
       for (let i = 1; i <= count; i++) {
         nft.mint(alice);
         assertions.expectOk(
-          marketplace.list(i, PRICES.DEFAULT_PRICE * i, alice).result,
+          marketplace.list(i, utils.stxToMicro(i), alice).result,
           Cl.uint(i - 1)
         );
       }
