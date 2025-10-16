@@ -22,58 +22,16 @@
     maker: principal,
     token-id: uint,
     nft-asset-contract: principal,
-    price: uint
+    price: uint,
   }
 )
 
 ;; Used for unique IDs for each listing
 (define-data-var listing-nonce uint u0)
 
-;; Floor price tracking
-(define-map floor-prices principal uint)
-
 ;; Public function to get the current listing nonce
 (define-read-only (get-listing-nonce)
   (ok (var-get listing-nonce))
-)
-
-;; Get floor price for a specific NFT contract
-(define-read-only (get-floor-price (nft-contract principal))
-  (ok (map-get? floor-prices nft-contract))
-)
-
-;; Private function to recalculate floor price after removal
-(define-private (recalculate-floor-price (nft-contract principal))
-  (let ((nonce (var-get listing-nonce)))
-    (if (is-eq nonce u0)
-      (map-delete floor-prices nft-contract)
-      (let ((min-price (fold check-listing-price 
-                            (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9) 
-                            {nft-contract: nft-contract, min: none})))
-        (match (get min min-price)
-          price (map-set floor-prices nft-contract price)
-          (map-delete floor-prices nft-contract)
-        )
-      )
-    )
-  )
-)
-
-;; Helper to check each listing
-(define-private (check-listing-price (listing-id uint) (acc {nft-contract: principal, min: (optional uint)}))
-  (match (map-get? listings listing-id)
-    listing 
-      (if (is-eq (get nft-asset-contract listing) (get nft-contract acc))
-        (match (get min acc)
-          current-min 
-            (if (< (get price listing) current-min)
-              {nft-contract: (get nft-contract acc), min: (some (get price listing))}
-              acc)
-          {nft-contract: (get nft-contract acc), min: (some (get price listing))}
-        )
-        acc)
-    acc
-  )
 )
 
 ;; Internal function to transfer an NFT asset from a sender to a given recipient.
@@ -91,14 +49,12 @@
     (nft-asset-contract <nft-trait>)
     (nft-asset {
       token-id: uint,
-      price: uint
+      price: uint,
     })
   )
-  (let ((listing-id (var-get listing-nonce))
-        (nft-contract (contract-of nft-asset-contract))
-        (listing-price (get price nft-asset)))
+  (let ((listing-id (var-get listing-nonce)))
     ;; Verify that the asset price is greater than zero
-    (asserts! (> listing-price u0) ERR_PRICE_ZERO)
+    (asserts! (> (get price nft-asset) u0) ERR_PRICE_ZERO)
 
     ;; Transfer the NFT ownership to this contract's principal
     (try! (transfer-nft nft-asset-contract (get token-id nft-asset) tx-sender
@@ -108,19 +64,10 @@
     (map-set listings listing-id
       (merge {
         maker: tx-sender,
-        nft-asset-contract: nft-contract,
+        nft-asset-contract: (contract-of nft-asset-contract),
       }
         nft-asset
       ))
-    ;; Update floor price if necessary
-    (match (map-get? floor-prices nft-contract)
-      current-floor
-        (if (< listing-price current-floor)
-          (map-set floor-prices nft-contract listing-price)
-          true)
-      ;; No floor price set yet
-      (map-set floor-prices nft-contract listing-price)
-    )
     ;; Increment the nonce to use for the next unique listing ID
     (var-set listing-nonce (+ listing-id u1))
     ;; Return the created listing ID
@@ -153,8 +100,6 @@
     )
     ;; Delete the listing
     (map-delete listings listing-id)
-    ;; Recalculate floor price
-    (recalculate-floor-price (get nft-asset-contract listing))
     ;; Transfer the NFT from this contract's principal back to the creator's principal
     (as-contract (transfer-nft nft-asset-contract (get token-id listing) tx-sender maker))
   )
@@ -200,8 +145,6 @@
     (try! (stx-transfer? (get price listing) taker (get maker listing)))
     ;; Remove the NFT from the marketplace listings
     (map-delete listings listing-id)
-    ;; Recalculate floor price
-    (recalculate-floor-price (get nft-asset-contract listing))
     ;; Return the listing ID that was just purchased
     (ok listing-id)
   )
