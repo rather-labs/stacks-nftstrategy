@@ -42,7 +42,7 @@ import { useNftHoldings } from '@/hooks/useNftHoldings';
 import { getStrategyPrincipal } from '@/constants/contracts';
 import { formatValue } from '@/lib/clarity-utils';
 import { getPlaceholderImage } from '@/utils/nft-utils';
-import { getExplorerLink } from '@/utils/explorer-links';
+import { getAccountExplorerLink, getExplorerLink } from '@/utils/explorer-links';
 
 const MICROSTX_IN_STX = 1_000_000;
 
@@ -332,11 +332,16 @@ export default function StrategyDashboard() {
             <CardBody>
               <Stat>
                 <StatLabel>Strategy Principal</StatLabel>
-                <StatNumber fontSize="lg">{strategyPrincipal}</StatNumber>
+                <StatNumber fontSize="lg">
+                  <Link
+                    color="blue.500"
+                    href={getAccountExplorerLink(strategyPrincipal, network)}
+                    isExternal
+                  >
+                    {strategyPrincipal}
+                  </Link>
+                </StatNumber>
               </Stat>
-              <Text mt={3} fontSize="sm" color="gray.600">
-                Contract currently executing buy and burn automation on testnet.
-              </Text>
             </CardBody>
           </Card>
         </SimpleGrid>
