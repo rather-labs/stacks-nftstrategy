@@ -1,8 +1,23 @@
 'use client';
-import { Box, Button, Flex, Icon, Text, Tooltip, IconButton } from '@chakra-ui/react';
+
+import {
+  Button,
+  Flex,
+  Tag,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  MenuDivider,
+  IconButton,
+  Link,
+  useToast,
+  Box,
+} from '@chakra-ui/react';
+import { ChevronDownIcon, ExternalLinkIcon, CopyIcon } from '@chakra-ui/icons';
 import { useContext, useState } from 'react';
 import { HiroWalletContext } from './HiroWalletProvider';
-import { RiFileCopyLine, RiCloseLine } from 'react-icons/ri';
+import { getAccountExplorerLink } from '@/utils/explorer-links';
 
 interface ConnectWalletButtonProps {
   children?: React.ReactNode;
@@ -11,7 +26,7 @@ interface ConnectWalletButtonProps {
 
 export const ConnectWalletButton = (buttonProps: ConnectWalletButtonProps) => {
   const { children } = buttonProps;
-  const [didCopyAddress, setDidCopyAddress] = useState(false);
+  const toast = useToast();
   const { authenticate, isWalletConnected, mainnetAddress, testnetAddress, network, disconnect } =
     useContext(HiroWalletContext);
 
@@ -20,10 +35,14 @@ export const ConnectWalletButton = (buttonProps: ConnectWalletButtonProps) => {
   const copyAddress = () => {
     if (currentAddress) {
       navigator.clipboard.writeText(currentAddress);
-      setDidCopyAddress(true);
-      setTimeout(() => {
-        setDidCopyAddress(false);
-      }, 1000);
+      toast({
+        title: 'Address copied',
+        description: 'Wallet address copied to clipboard',
+        status: 'success',
+        duration: 2000,
+        isClosable: true,
+        position: 'bottom-right',
+      });
     }
   };
 
@@ -33,37 +52,76 @@ export const ConnectWalletButton = (buttonProps: ConnectWalletButtonProps) => {
     return `${str.slice(0, 6)}...${str.slice(-4)}`;
   };
 
+  const networkLabel = network === 'mainnet' ? 'Mainnet' : 'Testnet';
+  const networkColor = network === 'mainnet' ? 'blue' : 'purple';
+
   return isWalletConnected ? (
-    <Flex align="center" gap={2} p={2} borderRadius="md" bg="gray.200">
-      <Text color="gray.800" fontSize="sm">
-        {truncateMiddle(currentAddress)}
-      </Text>
-      <Tooltip label="Copy address" isOpen={didCopyAddress ? true : undefined}>
-        <IconButton
-          aria-label="Copy address"
-          icon={<Icon as={RiFileCopyLine} />}
-          size="sm"
+    <Menu>
+      <Flex align="center" gap={0}>
+        <Link
+          href={getAccountExplorerLink(currentAddress || '', network)}
+          target="_blank"
+          _hover={{ textDecoration: 'none' }}
+        >
+          <Button
+            variant="ghost"
+            size="md"
+            rightIcon={<ChevronDownIcon visibility="hidden" />}
+            _hover={{ bg: 'bg.subtle' }}
+          >
+            <Flex align="center" gap={2}>
+              <Box
+                fontSize="sm"
+                fontFamily="mono"
+                width="140px"
+                overflow="hidden"
+                textOverflow="ellipsis"
+                color="text.primary"
+              >
+                {truncateMiddle(currentAddress)}
+              </Box>
+              <Tag size="sm" colorScheme={networkColor} borderRadius="full">
+                {networkLabel}
+              </Tag>
+            </Flex>
+          </Button>
+        </Link>
+        <MenuButton
+          as={IconButton}
           variant="ghost"
-          onClick={copyAddress}
-          minW="8"
-          p="1"
+          icon={<ChevronDownIcon />}
+          aria-label="Wallet options"
+          size="md"
+          _hover={{ bg: 'bg.subtle' }}
         />
-      </Tooltip>
-      <Tooltip label="Disconnect wallet">
-        <IconButton
-          aria-label="Disconnect wallet"
-          icon={<Icon as={RiCloseLine} />}
-          size="sm"
-          variant="ghost"
-          onClick={disconnect}
-          data-testid="disconnect-wallet-address-button"
-          minW="8"
-          p="1"
-        />
-      </Tooltip>
-    </Flex>
+      </Flex>
+      <MenuList>
+        <MenuItem icon={<CopyIcon />} onClick={copyAddress}>
+          Copy Address
+        </MenuItem>
+        <MenuItem
+          icon={<ExternalLinkIcon />}
+          as={Link}
+          href={getAccountExplorerLink(currentAddress || '', network)}
+          target="_blank"
+          _hover={{ textDecoration: 'none' }}
+        >
+          View in Explorer
+        </MenuItem>
+        <MenuDivider />
+        <MenuItem onClick={disconnect} color="red.500" data-testid="disconnect-wallet-address-button">
+          Disconnect Wallet
+        </MenuItem>
+      </MenuList>
+    </Menu>
   ) : (
-    <Button size="sm" onClick={authenticate} data-testid="wallet-connect-button" {...buttonProps}>
+    <Button
+      size="md"
+      colorScheme="purple"
+      onClick={authenticate}
+      data-testid="wallet-connect-button"
+      {...buttonProps}
+    >
       {children || 'Connect Wallet'}
     </Button>
   );
