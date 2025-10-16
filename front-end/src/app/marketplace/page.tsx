@@ -320,7 +320,7 @@ export default function MarketplacePage() {
           <CardHeader>
             <Flex justify="space-between" align="center">
               <Stack spacing={2}>
-                <Heading size="md">List an NFT</Heading>
+                <Heading size="md">Active Listings</Heading>
                 <Text fontSize="sm" color="gray.600">
                   Select a Funny Dog NFT from your wallet and set a sale price in STX.
                 </Text>
@@ -331,99 +331,7 @@ export default function MarketplacePage() {
           <Divider />
           <CardBody>
             <Stack spacing={6}>
-              {!currentAddress ? (
-                <Text fontSize="sm" color="gray.500">
-                  Connect a wallet to list NFTs on the marketplace.
-                </Text>
-              ) : (
-                <Stack spacing={4}>
-                  <Box>
-                    <Text fontSize="sm" color="gray.600" mb={2}>
-                      Your Funny Dog NFTs
-                    </Text>
-                    {nftHoldingsLoading ? (
-                      <HStack spacing={2}>
-                        <Spinner size="sm" />
-                        <Text fontSize="sm" color="gray.600">
-                          Loading your holdings...
-                        </Text>
-                      </HStack>
-                    ) : walletNftTokens.length === 0 ? (
-                      <Text fontSize="sm" color="gray.500">
-                        No Funny Dog NFTs detected in your wallet.
-                      </Text>
-                    ) : (
-                      <Wrap spacing={2}>
-                        {walletNftTokens.map((tokenId) => (
-                          <WrapItem key={tokenId}>
-                            <Button
-                              size="sm"
-                              variant={listTokenIdNumber === tokenId ? 'solid' : 'outline'}
-                              colorScheme="orange"
-                              onClick={() => setListTokenId(tokenId.toString())}
-                            >
-                              NFT #{tokenId}
-                            </Button>
-                          </WrapItem>
-                        ))}
-                      </Wrap>
-                    )}
-                  </Box>
-                  <FormControl>
-                    <FormLabel>Token ID</FormLabel>
-                    <NumberInput
-                      value={listTokenId}
-                      min={0}
-                      step={1}
-                      clampValueOnBlur={false}
-                      onChange={(valueString) => setListTokenId(valueString)}
-                    >
-                      <NumberInputField placeholder="e.g. 12" />
-                    </NumberInput>
-                  </FormControl>
-                  <FormControl>
-                    <FormLabel>Listing Price (STX)</FormLabel>
-                    <NumberInput
-                      value={listPrice}
-                      min={0}
-                      precision={6}
-                      step={0.1}
-                      clampValueOnBlur={false}
-                      onChange={(valueString) => setListPrice(valueString)}
-                    >
-                      <NumberInputField placeholder="0.0 STX" />
-                    </NumberInput>
-                    <FormHelperText>
-                      {listingPriceMicro > 0
-                        ? `${(listingPriceMicro / MICROSTX_IN_STX).toFixed(6)} STX`
-                        : 'Set the sale price in STX.'}
-                    </FormHelperText>
-                  </FormControl>
-                  <Button
-                    colorScheme="orange"
-                    onClick={handleCreateListing}
-                    isDisabled={isListDisabled}
-                    isLoading={isListing}
-                  >
-                    List NFT
-                  </Button>
-                  {pendingListTxId && (
-                    <Link
-                      fontSize="sm"
-                      color="blue.500"
-                      href={getExplorerLink(pendingListTxId, network)}
-                      isExternal
-                    >
-                      View listing transaction <ExternalLinkIcon mx="4px" />
-                    </Link>
-                  )}
-                </Stack>
-              )}
-
-              <Divider />
-
               <Stack spacing={4}>
-                <Heading size="sm">Active Listings</Heading>
                 {listingsLoading ? (
                   <Center py={6}>
                     <Spinner />
