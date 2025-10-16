@@ -1,566 +1,195 @@
 'use client';
 
-import Image from 'next/image';
-import { useCallback, useMemo, useState } from 'react';
+import NextLink from 'next/link';
 import {
-  Badge,
   Box,
   Button,
-  Card,
-  CardBody,
-  CardHeader,
-  Center,
   Container,
   Divider,
-  Flex,
   Heading,
-  HStack,
-  Link,
   SimpleGrid,
-  Spinner,
   Stack,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
   Text,
-  useToast,
-  VStack,
-  Progress,
-  Tooltip,
+  HStack,
+  Icon,
+  Link,
 } from '@chakra-ui/react';
-import { ExternalLinkIcon } from '@chakra-ui/icons';
-import { useQuery } from '@tanstack/react-query';
-import { useNetwork } from '@/lib/use-network';
-import {
-  buildBuyAndRelistTx,
-  buildBuyTokenAndBurnTx,
-  fetchStrategyBurnStats,
-  getStrategyContractsSummary,
-  StrategyBurnStats,
-  StrategyMetrics,
-} from '@/lib/strategy/operations';
-import { fetchListings, Listing } from '@/lib/marketplace/operations';
-import { useDevnetWallet } from '@/lib/devnet-wallet-context';
-import { shouldUseDirectCall, executeContractCall, openContractCall } from '@/lib/contract-utils';
-import { useCurrentAddress } from '@/hooks/useCurrentAddress';
-import { getStrategyPrincipal } from '@/constants/contracts';
-import { getAccountExplorerLink, getExplorerLink } from '@/utils/explorer-links';
+import { ArrowForwardIcon, RepeatIcon, LockIcon, StarIcon } from '@chakra-ui/icons';
 
-const MICROSTX_IN_STX = 1_000_000;
+const features = [
+  {
+    title: 'Automated Floor Rotations',
+    description:
+      'Sweep the floor programmatically, relist at a premium, and auto-route sale proceeds back to the treasury—accruing STX without manual management.',
+    icon: RepeatIcon,
+  },
+  {
+    title: 'Fee-On-Transfer Yield',
+    description:
+      'Every marketplace or pool interaction returns 10% to the strategy treasury, compounding the next buy and accelerating the cycle.',
+    icon: StarIcon,
+  },
+  {
+    title: 'Non-Custodial Controls',
+    description:
+      'No off-chain servers. Contracts live entirely on Stacks. Execute from any wallet with built-in post-conditions for safety.',
+    icon: LockIcon,
+  },
+];
 
-export default function StrategyDashboard() {
-  const toast = useToast();
-  const network = useNetwork();
-  const currentAddress = useCurrentAddress();
-  const { currentWallet } = useDevnetWallet();
+const phases = [
+  {
+    title: 'Acquire the Floor',
+    copy: 'The strategy treasury buys the lowest-priced NFT (e.g., Funny Dog collection) on Stacks.',
+  },
+  {
+    title: 'Relist at a Premium',
+    copy: 'The position is immediately relisted at a +10% markup to capture spread as the market clears.',
+  },
+  {
+    title: 'Recycle and Burn',
+    copy: 'When the relisted NFT sells, the STX flows through the pool, swaps to RATHER, and the purchased RATHER is burned—reducing supply while refueling the treasury.',
+  },
+];
 
-  const [pendingBuyTxId, setPendingBuyTxId] = useState<string | null>(null);
-  const [pendingBurnTxId, setPendingBurnTxId] = useState<string | null>(null);
-  const [isBuyingFloor, setIsBuyingFloor] = useState(false);
-  const [isBurning, setIsBurning] = useState(false);
+const resources = [
+  {
+    label: 'Explore the Dashboard',
+    href: '/strategy',
+  },
+  {
+    label: 'View Marketplace Listings',
+    href: '/marketplace',
+  },
+  {
+    label: 'Check Liquidity Pool',
+    href: '/liquidity',
+  },
+];
 
-  const strategyPrincipal = useMemo(
-    () => (network ? getStrategyPrincipal(network) : ''),
-    [network]
-  );
-
-  const {
-    data: metrics,
-    isLoading: metricsLoading,
-    refetch: refetchMetrics,
-  } = useQuery<StrategyMetrics>({
-    queryKey: ['strategy-metrics', network],
-    queryFn: () =>
-      network
-        ? getStrategyContractsSummary(network)
-        : Promise.resolve({ feeBalance: 0, stxBalance: 0, floorListing: null }),
-    enabled: !!network,
-    refetchInterval: 15000,
-  });
-
-  const {
-    data: burnStats,
-    isLoading: burnStatsLoading,
-    refetch: refetchBurnStats,
-  } = useQuery<StrategyBurnStats>({
-    queryKey: ['strategy-burn-stats', network],
-    queryFn: () =>
-      network ? fetchStrategyBurnStats(network) : Promise.resolve({ burned: 0, initialSupply: 0 }),
-    enabled: !!network,
-    refetchInterval: 30000,
-  });
-
-  const {
-    data: strategyListings = [],
-    isLoading: listingsLoading,
-    refetch: refetchStrategyListings,
-  } = useQuery<Listing[]>({
-    queryKey: ['strategy-owned-listings', network, strategyPrincipal],
-    queryFn: () =>
-      network && strategyPrincipal
-        ? fetchListings(network).then((listings) =>
-            listings.filter((listing) => listing.maker === strategyPrincipal)
-          )
-        : Promise.resolve([]),
-    enabled: !!network && !!strategyPrincipal,
-    refetchInterval: 20000,
-  });
-
-  const refreshAll = useCallback(() => {
-    void refetchMetrics();
-    void refetchBurnStats();
-    if (strategyPrincipal) {
-      void refetchStrategyListings();
-    }
-  }, [refetchMetrics, refetchBurnStats, refetchStrategyListings, strategyPrincipal]);
-
-  const handleBuyFloor = useCallback(async () => {
-    if (!network || !metrics?.floorListing) {
-      toast({
-        title: 'No floor listing available',
-        description: 'The marketplace does not currently have a floor listing to purchase.',
-        status: 'info',
-      });
-      return;
-    }
-
-    if (!currentAddress) {
-      toast({
-        title: 'Connect wallet',
-        description: 'Please connect a wallet before executing strategy actions.',
-        status: 'warning',
-      });
-      return;
-    }
-
-    setIsBuyingFloor(true);
-    const txOptions = buildBuyAndRelistTx(
-      network,
-      metrics.floorListing.id,
-      metrics.floorListing.price,
-      metrics.floorListing.tokenId
-    );
-
-    try {
-      if (shouldUseDirectCall()) {
-        if (!currentWallet) {
-          throw new Error('Devnet wallet is not configured');
-        }
-        const { txid } = await executeContractCall(txOptions, currentWallet);
-        setPendingBuyTxId(txid);
-        toast({
-          title: 'Transaction submitted',
-          description: `Broadcast buy-and-relist transaction ${txid}`,
-          status: 'info',
-        });
-        refreshAll();
-        return;
-      }
-
-      await openContractCall({
-        ...txOptions,
-        onFinish: ({ txId }) => {
-          setPendingBuyTxId(txId);
-          toast({
-            title: 'Buy floor submitted',
-            description: 'Transaction submitted to the Stacks network.',
-            status: 'success',
-          });
-          refreshAll();
-        },
-        onCancel: () => {
-          toast({
-            title: 'Transaction cancelled',
-            description: 'You cancelled the buy-and-relist transaction.',
-            status: 'info',
-          });
-        },
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: 'Buy floor failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-      });
-    } finally {
-      setIsBuyingFloor(false);
-    }
-  }, [network, metrics, currentAddress, toast, currentWallet, refreshAll, shouldUseDirectCall]);
-
-  const handleBurn = useCallback(async () => {
-    if (!network) return;
-
-    if (!currentAddress) {
-      toast({
-        title: 'Connect wallet',
-        description: 'Please connect a wallet before executing strategy actions.',
-        status: 'warning',
-      });
-      return;
-    }
-
-    setIsBurning(true);
-    const txOptions = buildBuyTokenAndBurnTx(network);
-
-    try {
-      if (shouldUseDirectCall()) {
-        if (!currentWallet) {
-          throw new Error('Devnet wallet is not configured');
-        }
-        const { txid } = await executeContractCall(txOptions, currentWallet);
-        setPendingBurnTxId(txid);
-        toast({
-          title: 'Burn submitted',
-          description: `Broadcast buy-token-and-burn transaction ${txid}`,
-          status: 'info',
-        });
-        refreshAll();
-        return;
-      }
-
-      await openContractCall({
-        ...txOptions,
-        onFinish: ({ txId }) => {
-          setPendingBurnTxId(txId);
-          toast({
-            title: 'Burn submitted',
-            description: 'RATHER burn transaction submitted to Stacks.',
-            status: 'success',
-          });
-          refreshAll();
-        },
-        onCancel: () => {
-          toast({
-            title: 'Transaction cancelled',
-            description: 'You cancelled the burn transaction.',
-            status: 'info',
-          });
-        },
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: 'Burn failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-      });
-    } finally {
-      setIsBurning(false);
-    }
-  }, [network, currentAddress, toast, currentWallet, refreshAll, shouldUseDirectCall]);
-
-  if (!network) {
-    return (
-      <Center minH="60vh">
-        <Spinner />
-      </Center>
-    );
-  }
-
-  const marketplaceHoldingCount = strategyListings.length;
-  const feeBalanceStx = metrics ? metrics.feeBalance / MICROSTX_IN_STX : 0;
-  const stxBalance = metrics ? metrics.stxBalance / MICROSTX_IN_STX : 0;
-  const burnableStx = metrics
-    ? Math.max(metrics.stxBalance - metrics.feeBalance, 0) / MICROSTX_IN_STX
-    : 0;
-  const floorPriceStx = metrics?.floorListing ? metrics.floorListing.price / MICROSTX_IN_STX : null;
-  const purchaseProgress =
-    !metricsLoading && floorPriceStx && floorPriceStx > 0
-      ? Math.min((feeBalanceStx / floorPriceStx) * 100, 100)
-      : 0;
-
-  const burnedRather = burnStats ? burnStats.burned / MICROSTX_IN_STX : 0;
-  const totalSupplyRather = burnStats ? burnStats.initialSupply / MICROSTX_IN_STX : 0;
-  const burnedPercentage =
-    !burnStatsLoading && totalSupplyRather > 0 ? (burnedRather / totalSupplyRather) * 100 : 0;
-
+export default function LandingPage() {
   return (
-    <Container maxW="6xl" py={10}>
-      <VStack align="stretch" spacing={8}>
-        <Stack spacing={2}>
-          <Heading size="lg">Strategy Dashboard</Heading>
-          <Text color="gray.600">
-            Monitor strategy treasury, marketplace floor, and recent execution on Stacks testnet.
-          </Text>
-        </Stack>
+    <Box
+      as="main"
+      bgGradient="linear(to-b, white, purple.50)"
+      minH="100vh"
+      py={{ base: 12, md: 20 }}
+    >
+      <Container maxW="6xl">
+        <Stack spacing={{ base: 12, md: 16 }}>
+          <Stack spacing={6} textAlign="center" align="center">
+            <Heading size={{ base: 'xl', md: '2xl' }} maxW="4xl">
+              RATHER Strategy Protocol
+            </Heading>
+            <Text fontSize={{ base: 'md', md: 'lg' }} color="gray.600" maxW="3xl">
+              A looping NFT accumulation engine built on Stacks. Automate floor sweeps. Capture the
+              spread. Burn the supply. Non-custodial, fully on-chain, and built for composability.
+            </Text>
+            <HStack spacing={4} flexWrap="wrap" justify="center">
+              <Button
+                as={NextLink}
+                href="/strategy"
+                size="lg"
+                colorScheme="purple"
+                rightIcon={<ArrowForwardIcon />}
+              >
+                Launch Dashboard
+              </Button>
+              <Button as={NextLink} href="/marketplace" size="lg" variant="outline">
+                Browse Marketplace
+              </Button>
+            </HStack>
+          </Stack>
 
-        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
-          <Card>
-            <CardBody>
-              <Stack spacing={4}>
-                <Stat>
-                  <StatLabel>Treasury Balance</StatLabel>
-                  <StatNumber>
-                    {metricsLoading ? '—' : `${feeBalanceStx.toFixed(3)} STX`}
-                  </StatNumber>
-                  <StatHelpText mt={1} color="gray.500">
-                    Portion of the strategy STX reserved for NFT purchases.
-                  </StatHelpText>
-                </Stat>
-                <Stat>
-                  <StatLabel>Burnable Balance</StatLabel>
-                  <StatNumber>{metricsLoading ? '—' : `${burnableStx.toFixed(3)} STX`}</StatNumber>
-                  <StatHelpText mt={1} color="gray.500">
-                    Total STX accrued on NFT sales.
-                  </StatHelpText>
-                </Stat>
-                {pendingBurnTxId && (
-                  <Link
-                    fontSize="sm"
-                    color="blue.500"
-                    href={getExplorerLink(pendingBurnTxId, network)}
-                    isExternal
-                  >
-                    View burn transaction <ExternalLinkIcon mx="4px" />
-                  </Link>
-                )}
+          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
+            {features.map((feature) => (
+              <Stack
+                key={feature.title}
+                spacing={4}
+                p={6}
+                borderRadius="lg"
+                borderWidth="1px"
+                borderColor="purple.100"
+                bg="white"
+                boxShadow="sm"
+                h="100%"
+              >
+                <Icon as={feature.icon} boxSize={10} color="purple.500" />
+                <Heading size="md">{feature.title}</Heading>
+                <Text color="gray.600">{feature.description}</Text>
               </Stack>
-            </CardBody>
-          </Card>
+            ))}
+          </SimpleGrid>
 
-          <Card>
-            <CardBody>
-              <Stack spacing={4}>
-                <Stat>
-                  <StatLabel>Floor Listing</StatLabel>
-                  <StatNumber>
-                    {metricsLoading
-                      ? '—'
-                      : floorPriceStx !== null
-                        ? `${floorPriceStx.toFixed(2)} STX`
-                        : 'No listings'}
-                  </StatNumber>
-                </Stat>
-                {metrics?.floorListing && (
-                  <Text fontSize="sm" color="gray.600">
-                    Token #{metrics.floorListing.tokenId} by{' '}
-                    {metrics.floorListing.maker.slice(0, 6)}…
+          <Stack spacing={6} p={{ base: 6, md: 10 }} borderRadius="2xl" bg="white" boxShadow="md">
+            <Heading size="lg" textAlign={{ base: 'left', md: 'center' }}>
+              How the flywheel spins
+            </Heading>
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
+              {phases.map((phase, index) => (
+                <Stack key={phase.title} spacing={3}>
+                  <Text fontWeight="semibold" color="purple.500">
+                    {String(index + 1).padStart(2, '0')}
                   </Text>
-                )}
-                <Stack spacing={2}>
-                  <Text fontSize="sm" color="gray.600">
-                    Progress toward next floor purchase
-                  </Text>
-                  <Progress
-                    value={purchaseProgress}
-                    colorScheme="purple"
-                    size="sm"
-                    borderRadius="full"
-                    isIndeterminate={metricsLoading}
-                  />
-                  <Text fontSize="xs" color="gray.500">
-                    {metricsLoading
-                      ? 'Calculating progress…'
-                      : floorPriceStx
-                        ? `${purchaseProgress.toFixed(0)}% of ${floorPriceStx.toFixed(2)} STX target`
-                        : 'No active marketplace listing detected.'}
-                  </Text>
+                  <Heading size="md">{phase.title}</Heading>
+                  <Text color="gray.600">{phase.copy}</Text>
                 </Stack>
-                {pendingBuyTxId && (
-                  <Link
-                    fontSize="sm"
-                    color="blue.500"
-                    href={getExplorerLink(pendingBuyTxId, network)}
-                    isExternal
-                  >
-                    View buy transaction <ExternalLinkIcon mx="4px" />
-                  </Link>
-                )}
-              </Stack>
-            </CardBody>
-          </Card>
+              ))}
+            </SimpleGrid>
+          </Stack>
 
-          <Card>
-            <CardBody>
-              <Stat>
-                <StatLabel>Strategy Principal</StatLabel>
-                <StatNumber fontSize="lg">
-                  <Link
-                    color="blue.500"
-                    href={getAccountExplorerLink(strategyPrincipal, network)}
-                    isExternal
-                  >
-                    {strategyPrincipal}
-                  </Link>
-                </StatNumber>
-              </Stat>
-            </CardBody>
-          </Card>
-        </SimpleGrid>
+          <Stack spacing={4} align="center">
+            <Heading size="md">Dive deeper</Heading>
+            <Text color="gray.600" textAlign="center" maxW="2xl">
+              Whether you want to interact with the contracts, monitor liquidity, or browse active
+              listings, everything lives inside the app. Start with the dashboard and explore from
+              there.
+            </Text>
+            <HStack spacing={6} flexWrap="wrap" justify="center">
+              {resources.map((resource) => (
+                <Link
+                  key={resource.label}
+                  as={NextLink}
+                  href={resource.href}
+                  fontWeight="semibold"
+                  color="purple.600"
+                  _hover={{ textDecoration: 'underline' }}
+                >
+                  {resource.label}
+                </Link>
+              ))}
+            </HStack>
+          </Stack>
 
-        <Card>
-          <CardHeader>
-            <Flex justify="space-between" align="center">
-              <Stack spacing={2}>
-                <Heading size="md">Strategy Actions</Heading>
-                <Text fontSize="sm" color="gray.600">
-                  Execute the automated steps directly from your connected wallet.
-                </Text>
-              </Stack>
-              <HStack spacing={3}>
-                <Button
-                  colorScheme="purple"
-                  onClick={handleBuyFloor}
-                  isLoading={isBuyingFloor}
-                  isDisabled={!metrics?.floorListing || !currentAddress}
-                >
-                  Buy Floor &amp; Relist
-                </Button>
-                <Button
-                  colorScheme="orange"
-                  variant="outline"
-                  onClick={handleBurn}
-                  isLoading={isBurning}
-                  isDisabled={!currentAddress || !metrics || metrics.feeBalance === 0}
-                >
-                  Buy RATHER &amp; Burn
-                </Button>
-              </HStack>
-            </Flex>
-          </CardHeader>
           <Divider />
-          <CardBody>
-            <Text fontSize="sm" color="gray.600">
-              The buy action consumes treasury STX to purchase the lowest-priced Funny Dog NFT and
-              relists it at a premium. The burn action routes available STX through the liquidity
-              pool, acquires RATHER, and burns it to reduce supply.
+
+          <Stack
+            spacing={4}
+            align="center"
+            textAlign="center"
+            p={{ base: 6, md: 10 }}
+            borderRadius="2xl"
+            bg="purple.600"
+            color="white"
+          >
+            <Heading size="lg">Ready to automate your NFT treasury?</Heading>
+            <Text maxW="2xl">
+              Connect a devnet wallet, monitor treasury health, and trigger buys or burns in a few
+              clicks. The strategy contract handles the rest.
             </Text>
-          </CardBody>
-        </Card>
-
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-          <Card>
-            <CardHeader>
-              <Stack spacing={1}>
-                <HStack spacing={2} align="center">
-                  <Heading size="md">Current Holdings</Heading>
-                  <Badge colorScheme="purple">
-                    {listingsLoading ? '—' : marketplaceHoldingCount}
-                  </Badge>
-                </HStack>
-              </Stack>
-            </CardHeader>
-            <Divider />
-            <CardBody>
-              {listingsLoading ? (
-                <Center py={6}>
-                  <Spinner />
-                </Center>
-              ) : marketplaceHoldingCount === 0 ? (
-                <Text fontSize="sm" color="gray.600">
-                  Strategy contract does not hold any Funny Dog NFTs right now.
-                </Text>
-              ) : (
-                <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
-                  {strategyListings.map((listing) => {
-                    const assetContract = listing.nftAssetContract;
-                    const tokenId = listing.tokenId;
-                    const imageIndex = tokenId % 13;
-                    const imageSrc = `/images/dogs/${imageIndex}.webp`;
-                    const contractHref = getAccountExplorerLink(assetContract, network);
-                    const shortenedContract = `${assetContract.slice(0, 6)}…${assetContract.slice(-4)}`;
-
-                    return (
-                      <Card key={`${listing.id}-${tokenId}`} bg="gray.50">
-                        <CardBody>
-                          <VStack align="start" spacing={3}>
-                            <Box
-                              w="100%"
-                              borderRadius="md"
-                              overflow="hidden"
-                              position="relative"
-                              sx={{ aspectRatio: '1 / 1' }}
-                            >
-                              <Image
-                                src={imageSrc}
-                                alt={`Funny Dog #${tokenId}`}
-                                fill
-                                sizes="(min-width: 768px) 240px, 100vw"
-                                style={{ objectFit: 'cover' }}
-                              />
-                            </Box>
-                            <Heading size="sm">NFT #{tokenId}</Heading>
-                            <Tooltip label={assetContract} placement="top" hasArrow>
-                              <Link
-                                fontSize="xs"
-                                color="blue.500"
-                                href={contractHref}
-                                isExternal
-                                noOfLines={1}
-                              >
-                                {shortenedContract}
-                              </Link>
-                            </Tooltip>
-                          </VStack>
-                        </CardBody>
-                      </Card>
-                    );
-                  })}
-                </SimpleGrid>
-              )}
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <Stack spacing={1}>
-                <Heading size="md">Burned RATHER</Heading>
-              </Stack>
-            </CardHeader>
-            <Divider />
-            <Text fontSize="sm" color="gray.600" mt={3} textAlign="left" px={6}>
-              Tracks cumulative RATHER removed from circulation by the strategy.
-            </Text>
-            <CardBody>
-              {burnStatsLoading ? (
-                <Center py={6}>
-                  <Spinner />
-                </Center>
-              ) : (
-                <Stack spacing={5}>
-                  <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
-                    <Stat>
-                      <StatLabel>Total Burned</StatLabel>
-                      <StatNumber>{`${burnedRather.toFixed(3)} RATHER`}</StatNumber>
-                    </Stat>
-                    <Stat>
-                      <StatLabel>Supply Reduced</StatLabel>
-                      <StatNumber>{`${burnedPercentage.toFixed(2)}%`}</StatNumber>
-                      <StatHelpText mt={1} color="gray.500">
-                        Initial supply{' '}
-                        {totalSupplyRather.toLocaleString(undefined, {
-                          maximumFractionDigits: 3,
-                          minimumFractionDigits: 0,
-                        })}{' '}
-                        RATHER
-                      </StatHelpText>
-                    </Stat>
-                  </SimpleGrid>
-                  <Stack spacing={2}>
-                    <Text fontSize="sm" color="gray.600">
-                      Burn progress against total supply
-                    </Text>
-                    <Progress
-                      value={burnedPercentage}
-                      colorScheme="orange"
-                      size="sm"
-                      borderRadius="full"
-                      isIndeterminate={burnStatsLoading}
-                    />
-                    <Text fontSize="xs" color="gray.500">
-                      {burnedPercentage > 0
-                        ? `${burnedPercentage.toFixed(2)}% permanently removed from circulation.`
-                        : 'No RATHER has been burned yet.'}
-                    </Text>
-                  </Stack>
-                </Stack>
-              )}
-            </CardBody>
-          </Card>
-        </SimpleGrid>
-      </VStack>
-    </Container>
+            <Button
+              as={NextLink}
+              href="/strategy"
+              size="lg"
+              colorScheme="blackAlpha"
+              variant="solid"
+              rightIcon={<ArrowForwardIcon />}
+            >
+              Open the Strategy Dashboard
+            </Button>
+          </Stack>
+        </Stack>
+      </Container>
+    </Box>
   );
 }

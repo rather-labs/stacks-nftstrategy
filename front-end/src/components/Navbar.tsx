@@ -51,11 +51,14 @@ export const Navbar = () => {
             </Flex>
             <Link href="/" textDecoration="none">
               <Box fontSize="lg" fontWeight="bold" color="gray.900" ml={4}>
-                Strategy Dashboard
+                Rather Strategy
               </Box>
             </Link>
           </Flex>
           <Flex align="center" gap={4}>
+            <Link href="/strategy">
+              <Box>Dashboard</Box>
+            </Link>
             <Link href="/marketplace">
               <Box>Marketplace</Box>
             </Link>
