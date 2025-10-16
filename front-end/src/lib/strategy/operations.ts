@@ -25,9 +25,11 @@ import {
   parseReadOnlyResponse,
 } from '@/lib/marketplace/operations';
 import { getApi, getApiUrl } from '@/lib/stacks-api';
+import { fetchStrategyFeeBalanceFromPool } from '@/lib/pool/operations';
 
 export interface StrategyMetrics {
   feeBalance: number;
+  stxBalance: number;
   floorListing: Listing | null;
 }
 
@@ -171,7 +173,11 @@ export const fetchFloorListing = async (network: Network): Promise<Listing | nul
   const listings = await fetchListings(network, nonce);
   if (!listings.length) return null;
 
-  return listings.reduce<Listing | null>((best, current) => {
+  const strategyPrincipal = getStrategyPrincipal(network);
+  const eligibleListings = listings.filter((listing) => listing.maker !== strategyPrincipal);
+  if (!eligibleListings.length) return null;
+
+  return eligibleListings.reduce<Listing | null>((best, current) => {
     if (!best) return current;
     return current.price < best.price ? current : best;
   }, null);
@@ -227,13 +233,15 @@ export const fetchSoldNfts = async (network: Network): Promise<SoldNft[]> => {
 };
 
 export const getStrategyContractsSummary = async (network: Network): Promise<StrategyMetrics> => {
-  const [feeBalance, floorListing] = await Promise.all([
+  const [feeBalance, stxBalance, floorListing] = await Promise.all([
     fetchStrategyFeeBalance(network),
+    fetchStrategyFeeBalanceFromPool(network),
     fetchFloorListing(network),
   ]);
 
   return {
     feeBalance,
+    stxBalance,
     floorListing,
   };
 };
