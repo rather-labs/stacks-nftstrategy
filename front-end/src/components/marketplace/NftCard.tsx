@@ -136,18 +136,18 @@ export const NftCard = ({ nft }: NftCardProps) => {
                 objectFit="cover"
               />
             ) : (
-              <Box width="100%" height="100%" bg="gray.100" borderRadius="lg" />
+              <Box width="100%" height="100%" bg="bg.muted" borderRadius="lg" />
             )}
           </Box>
           <Stack spacing={2} p={4}>
             <Heading size="md">NFT #{tokenId}</Heading>
-            <Text fontSize="sm" color="gray.500">
+            <Text fontSize="sm" color="text.tertiary">
               {contractName}
             </Text>
           </Stack>
         </CardBody>
         <CardFooter pt={0} px={4} pb={4}>
-          <Text fontSize="xs" color="gray.400" isTruncated>
+          <Text fontSize="xs" color="text.tertiary" isTruncated>
             {nftAssetContract}
           </Text>
         </CardFooter>

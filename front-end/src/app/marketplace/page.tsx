@@ -311,7 +311,7 @@ export default function MarketplacePage() {
       <Stack spacing={8}>
         <Stack spacing={2}>
           <Heading size="lg">Marketplace</Heading>
-          <Text color="gray.600">
+          <Text color="text.secondary">
             Browse active listings, list your Funny Dog NFTs, and mint new ones in a single view.
           </Text>
         </Stack>
@@ -321,7 +321,7 @@ export default function MarketplacePage() {
             <Flex justify="space-between" align="center">
               <Stack spacing={2}>
                 <Heading size="md">Active Listings</Heading>
-                <Text fontSize="sm" color="gray.600">
+                <Text fontSize="sm" color="text.secondary">
                   Select a Funny Dog NFT from your wallet and set a sale price in STX.
                 </Text>
               </Stack>
@@ -355,7 +355,7 @@ export default function MarketplacePage() {
         <Card>
           <CardHeader>
             <Heading size="md">My Funny Dog NFTs</Heading>
-            <Text fontSize="sm" color="gray.600" mt={2}>
+            <Text fontSize="sm" color="text.secondary" mt={2}>
               Review your holdings and mint additional NFTs for testing flows.
             </Text>
           </CardHeader>
@@ -384,7 +384,7 @@ export default function MarketplacePage() {
                   <Box
                     borderWidth="1px"
                     borderRadius="lg"
-                    bg="white"
+                    bg="bg.surface"
                     boxShadow="md"
                     overflow="hidden"
                   >
@@ -395,14 +395,14 @@ export default function MarketplacePage() {
                         left={0}
                         right={0}
                         bottom={0}
-                        bg="gray.100"
+                        bg="bg.muted"
                       />
                     </Box>
                     <Stack p={4} spacing={3}>
                       <Text fontWeight="bold" fontSize="lg">
                         Mint Funny Dog NFT
                       </Text>
-                      <Text fontSize="sm" color="gray.600">
+                      <Text fontSize="sm" color="text.secondary">
                         Mints a new Funny Dog NFT to your connected wallet.
                       </Text>
                       <Button colorScheme="blue" onClick={handleMintNFT} size="sm">
@@ -412,7 +412,7 @@ export default function MarketplacePage() {
                         <Link
                           href={getExplorerLink(lastMintTxId, network)}
                           isExternal
-                          color="blue.500"
+                          color="link.primary"
                           fontSize="sm"
                         >
                           View mint transaction <ExternalLinkIcon mx="2px" />

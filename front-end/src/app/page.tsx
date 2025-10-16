@@ -71,7 +71,7 @@ export default function LandingPage() {
   return (
     <Box
       as="main"
-      bgGradient="linear(to-b, white, purple.50)"
+      bgGradient="linear(to-b, bg.canvas, brand.surface)"
       minH="100vh"
       py={{ base: 12, md: 20 }}
     >
@@ -81,7 +81,7 @@ export default function LandingPage() {
             <Heading size={{ base: 'xl', md: '2xl' }} maxW="4xl">
               RATHER Strategy Protocol
             </Heading>
-            <Text fontSize={{ base: 'md', md: 'lg' }} color="gray.600" maxW="3xl">
+            <Text fontSize={{ base: 'md', md: 'lg' }} color="text.secondary" maxW="3xl">
               A looping NFT accumulation engine built on Stacks. Automate floor sweeps. Capture the
               spread. Burn the supply. Non-custodial, fully on-chain, and built for composability.
             </Text>
@@ -109,19 +109,19 @@ export default function LandingPage() {
                 p={6}
                 borderRadius="lg"
                 borderWidth="1px"
-                borderColor="purple.100"
-                bg="white"
+                borderColor="brand.subtle"
+                bg="bg.surface"
                 boxShadow="sm"
                 h="100%"
               >
                 <Icon as={feature.icon} boxSize={10} color="purple.500" />
                 <Heading size="md">{feature.title}</Heading>
-                <Text color="gray.600">{feature.description}</Text>
+                <Text color="text.secondary">{feature.description}</Text>
               </Stack>
             ))}
           </SimpleGrid>
 
-          <Stack spacing={6} p={{ base: 6, md: 10 }} borderRadius="2xl" bg="white" boxShadow="md">
+          <Stack spacing={6} p={{ base: 6, md: 10 }} borderRadius="2xl" bg="bg.surface" boxShadow="md">
             <Heading size="lg" textAlign={{ base: 'left', md: 'center' }}>
               How the flywheel spins
             </Heading>
@@ -132,7 +132,7 @@ export default function LandingPage() {
                     {String(index + 1).padStart(2, '0')}
                   </Text>
                   <Heading size="md">{phase.title}</Heading>
-                  <Text color="gray.600">{phase.copy}</Text>
+                  <Text color="text.secondary">{phase.copy}</Text>
                 </Stack>
               ))}
             </SimpleGrid>
@@ -140,7 +140,7 @@ export default function LandingPage() {
 
           <Stack spacing={4} align="center">
             <Heading size="md">Dive deeper</Heading>
-            <Text color="gray.600" textAlign="center" maxW="2xl">
+            <Text color="text.secondary" textAlign="center" maxW="2xl">
               Whether you want to interact with the contracts, monitor liquidity, or browse active
               listings, everything lives inside the app. Start with the dashboard and explore from
               there.
@@ -152,7 +152,7 @@ export default function LandingPage() {
                   as={NextLink}
                   href={resource.href}
                   fontWeight="semibold"
-                  color="purple.600"
+                  color="brand.primary"
                   _hover={{ textDecoration: 'underline' }}
                 >
                   {resource.label}

@@ -175,24 +175,24 @@ export const ListingCard = ({ listing, onRefresh }: ListingCardProps) => {
               objectFit="cover"
             />
           ) : (
-            <Box width="100%" height="100%" bg="gray.100" borderRadius="lg" />
+            <Box width="100%" height="100%" bg="bg.muted" borderRadius="lg" />
           )}
         </Box>
         <Stack spacing={2} p={4}>
           <Heading size="md">NFT #{listing.tokenId}</Heading>
-          <Text fontSize="sm" color="gray.500">
+          <Text fontSize="sm" color="text.tertiary">
             {formatContractName(listing.nftAssetContract)}
           </Text>
           <Stack spacing={1}>
-            <Text color="orange.500" fontWeight="bold">
+            <Text color="accent.primary" fontWeight="bold">
               {listing.price / 1000000} STX
             </Text>
-            <Flex align="center" justify="space-between" fontSize="xs" color="gray.500">
+            <Flex align="center" justify="space-between" fontSize="xs" color="text.tertiary">
               <Text>Owner</Text>
               <Link
                 href={getAccountExplorerLink(listing.maker, network)}
                 isExternal
-                color="blue.500"
+                color="link.primary"
                 display="inline-flex"
                 alignItems="center"
                 gap={1}
@@ -206,12 +206,12 @@ export const ListingCard = ({ listing, onRefresh }: ListingCardProps) => {
       <CardFooter pt={0} px={4} pb={4}>
         <Stack spacing={2} width="100%">
           {listing.maker === testnetAddress || listing.maker === mainnetAddress ? (
-            <Button colorScheme="orange" onClick={handleCancel}>
+            <Button colorScheme="red" variant="outline" onClick={handleCancel}>
               Cancel Listing
             </Button>
           ) : (
             <Button
-              colorScheme="orange"
+              colorScheme="blue"
               onClick={handlePurchase}
               isLoading={!!purchaseTxId && !txData}
               loadingText="Purchasing..."
@@ -223,7 +223,7 @@ export const ListingCard = ({ listing, onRefresh }: ListingCardProps) => {
             <Link
               href={getExplorerLink(purchaseTxId, network)}
               isExternal
-              color="blue.500"
+              color="link.primary"
               fontSize="sm"
             >
               View transaction <ExternalLinkIcon mx="2px" />

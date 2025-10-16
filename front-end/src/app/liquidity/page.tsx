@@ -213,7 +213,7 @@ export default function LiquidityPage() {
       <Stack spacing={8}>
         <Stack spacing={2}>
           <Heading size="lg">Liquidity Pool</Heading>
-          <Text color="gray.600">
+          <Text color="text.secondary">
             Monitor reserves and execute swaps between STX and RATHER to keep the strategy funded.
           </Text>
         </Stack>
@@ -223,7 +223,7 @@ export default function LiquidityPage() {
             <Flex justify="space-between" align="center">
               <Stack spacing={2}>
                 <Heading size="md">Pool Overview</Heading>
-                <Text fontSize="sm" color="gray.600">
+                <Text fontSize="sm" color="text.secondary">
                   Reserves update automatically every few seconds. Swapping accrues protocol fees to
                   the treasury.
                 </Text>
@@ -238,7 +238,7 @@ export default function LiquidityPage() {
             <Stack spacing={6}>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
                 <Box borderWidth="1px" borderRadius="md" p={4}>
-                  <Text fontSize="sm" color="gray.600">
+                  <Text fontSize="sm" color="text.secondary">
                     STX Reserve
                   </Text>
                   <Heading size="md" mt={1}>
@@ -248,7 +248,7 @@ export default function LiquidityPage() {
                   </Heading>
                 </Box>
                 <Box borderWidth="1px" borderRadius="md" p={4}>
-                  <Text fontSize="sm" color="gray.600">
+                  <Text fontSize="sm" color="text.secondary">
                     RATHER Reserve
                   </Text>
                   <Heading size="md" mt={1}>
@@ -260,14 +260,14 @@ export default function LiquidityPage() {
               </SimpleGrid>
 
               {!poolInitialized && (
-                <Text fontSize="sm" color="orange.500">
+                <Text fontSize="sm" color="accent.primary">
                   Liquidity pool is not initialized yet. Deployers should call <code>init</code> on
                   the pool contract before attempting swaps.
                 </Text>
               )}
 
               <Box>
-                <Text fontSize="sm" color="gray.600" mb={2}>
+                <Text fontSize="sm" color="text.secondary" mb={2}>
                   Choose swap direction
                 </Text>
                 <ButtonGroup isAttached size="sm">
@@ -300,7 +300,7 @@ export default function LiquidityPage() {
                 >
                   <NumberInputField placeholder={`0.0 ${inputTokenLabel}`} />
                 </NumberInput>
-                <Text mt={2} fontSize="xs" color="gray.500">
+                <Text mt={2} fontSize="xs" color="text.tertiary">
                   Enter the {inputTokenLabel} amount you wish to trade through the pool.
                 </Text>
               </FormControl>
@@ -309,24 +309,24 @@ export default function LiquidityPage() {
                 {quoteLoading ? (
                   <HStack spacing={2}>
                     <Spinner size="sm" />
-                    <Text fontSize="sm" color="gray.600">
+                    <Text fontSize="sm" color="text.secondary">
                       Fetching quote...
                     </Text>
                   </HStack>
                 ) : amountIn > 0 && quote > 0 ? (
                   <Stack spacing={1}>
-                    <Text fontSize="sm" color="gray.600">
+                    <Text fontSize="sm" color="text.secondary">
                       Estimated output:{' '}
                       <Text as="span" fontWeight="semibold">
                         {estimatedOutput.toFixed(6)} {outputTokenLabel}
                       </Text>
                     </Text>
-                    <Text fontSize="xs" color="gray.500">
+                    <Text fontSize="xs" color="text.tertiary">
                       Each swap routes a 10% fee to the strategy treasury automatically.
                     </Text>
                   </Stack>
                 ) : (
-                  <Text fontSize="sm" color="gray.500">
+                  <Text fontSize="sm" color="text.tertiary">
                     Enter an amount to preview swap output and minimum received.
                   </Text>
                 )}
@@ -344,7 +344,7 @@ export default function LiquidityPage() {
               {pendingSwapTxId && (
                 <Link
                   fontSize="sm"
-                  color="blue.500"
+                  color="link.primary"
                   href={getExplorerLink(pendingSwapTxId, network)}
                   isExternal
                 >
