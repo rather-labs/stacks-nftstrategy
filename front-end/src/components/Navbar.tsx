@@ -1,18 +1,17 @@
 'use client';
 
-import { Box, Button, Container, Flex, Link } from '@chakra-ui/react';
+import { Box, Container, Flex, Link } from '@chakra-ui/react';
 import { useContext, useCallback } from 'react';
 import { HiroWalletContext } from './HiroWalletProvider';
 import { useDevnetWallet } from '@/lib/devnet-wallet-context';
 import { DevnetWalletButton } from './DevnetWalletButton';
 import { ConnectWalletButton } from './ConnectWallet';
 import { NetworkSelector } from './NetworkSelector';
-import { isDevnetEnvironment, useNetwork } from '@/lib/use-network';
+import { isDevnetEnvironment } from '@/lib/use-network';
 
 export const Navbar = () => {
   const { isWalletConnected } = useContext(HiroWalletContext);
   const { currentWallet, wallets, setCurrentWallet } = useDevnetWallet();
-  const network = useNetwork();
 
   const handleConnect = useCallback(async () => {
     if (!isWalletConnected) {
@@ -59,6 +58,9 @@ export const Navbar = () => {
           <Flex align="center" gap={4}>
             <Link href="/marketplace">
               <Box>Marketplace</Box>
+            </Link>
+            <Link href="/admin">
+              <Box>Admin</Box>
             </Link>
             <NetworkSelector />
             {isDevnetEnvironment() ? (

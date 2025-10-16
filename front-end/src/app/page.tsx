@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -14,11 +14,9 @@ import {
   Divider,
   Flex,
   FormControl,
-  FormHelperText,
   FormLabel,
   Heading,
   HStack,
-  Input,
   Link,
   NumberInput,
   NumberInputField,
@@ -38,23 +36,17 @@ import {
 } from '@chakra-ui/react';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { useQuery } from '@tanstack/react-query';
-import { request } from '@stacks/connect';
 import { useNetwork } from '@/lib/use-network';
 import {
   buildBuyAndRelistTx,
   buildBuyTokenAndBurnTx,
   fetchSoldNfts,
   getStrategyContractsSummary,
-  buildMintStrategyTokenTx,
   SoldNft,
 } from '@/lib/strategy/operations';
-import { fetchStrategyMinted } from '@/lib/strategy/mint-status';
 import {
   buildSwapRatherForStxTx,
   buildSwapStxForRatherTx,
-  buildInitLiquidityPoolTx,
-  buildUpdateReservesTx,
-  calculateMinOut,
   fetchPoolReserves,
   fetchQuoteRatherForStx,
   fetchQuoteStxForRather,
@@ -63,12 +55,7 @@ import {
   toMicroAmount,
 } from '@/lib/pool/operations';
 import { useDevnetWallet } from '@/lib/devnet-wallet-context';
-import {
-  shouldUseDirectCall,
-  executeContractCall,
-  openContractCall,
-  executeStxTransfer,
-} from '@/lib/contract-utils';
+import { shouldUseDirectCall, executeContractCall, openContractCall } from '@/lib/contract-utils';
 import { useCurrentAddress } from '@/hooks/useCurrentAddress';
 import { useNftHoldings } from '@/hooks/useNftHoldings';
 import { getStrategyPrincipal } from '@/constants/contracts';
@@ -107,17 +94,6 @@ export default function StrategyDashboard() {
   const [slippagePercent, setSlippagePercent] = useState(1);
   const [isSwapping, setIsSwapping] = useState(false);
   const [pendingSwapTxId, setPendingSwapTxId] = useState<string | null>(null);
-  const [sendRecipient, setSendRecipient] = useState('');
-  const [sendAmount, setSendAmount] = useState('');
-  const [isSendingStx, setIsSendingStx] = useState(false);
-  const [pendingSendTxId, setPendingSendTxId] = useState<string | null>(null);
-  const [isMinting, setIsMinting] = useState(false);
-  const [pendingMintTxId, setPendingMintTxId] = useState<string | null>(null);
-  const [hasMintedTokens, setHasMintedTokens] = useState(false);
-  const [isInitializingPool, setIsInitializingPool] = useState(false);
-  const [pendingInitTxId, setPendingInitTxId] = useState<string | null>(null);
-  const [isUpdatingReserves, setIsUpdatingReserves] = useState(false);
-  const [pendingUpdateTxId, setPendingUpdateTxId] = useState<string | null>(null);
 
   const strategyPrincipal = useMemo(
     () => (network ? getStrategyPrincipal(network) : ''),
@@ -147,17 +123,6 @@ export default function StrategyDashboard() {
     queryFn: () => (network ? fetchSoldNfts(network) : Promise.resolve([])),
     enabled: !!network,
     refetchInterval: 30000,
-  });
-
-  const {
-    data: mintedOnChain = false,
-    isLoading: mintStatusLoading,
-    refetch: refetchMintStatus,
-  } = useQuery({
-    queryKey: ['strategy-mint-status', network],
-    queryFn: () => (network ? fetchStrategyMinted(network) : Promise.resolve(false)),
-    enabled: !!network,
-    refetchInterval: 20000,
   });
 
   const {
@@ -208,12 +173,6 @@ export default function StrategyDashboard() {
     swapDirection === 'stx-to-rather' ? 'Swap STX for RATHER' : 'Swap RATHER for STX';
   const isSwapDisabled =
     !currentAddress || !poolInitialized || amountIn <= 0 || quote <= 0 || isSwapping;
-  const slippageLabel = slippagePercent.toFixed(1);
-  const sendAmountMicro = useMemo(() => toMicroAmount(sendAmount), [sendAmount]);
-  const isSendDisabled = !currentAddress || sendAmountMicro <= 0 || !sendRecipient || isSendingStx;
-  const isMintDisabled = !currentAddress || isMinting || hasMintedTokens || mintStatusLoading;
-  const isInitDisabled = !currentAddress || isInitializingPool || poolInitialized;
-  const isUpdateReservesDisabled = !currentAddress || isUpdatingReserves;
 
   const handleDirectionChange = useCallback((direction: SwapDirection) => {
     setSwapDirection(direction);
@@ -229,31 +188,10 @@ export default function StrategyDashboard() {
     void refetchMetrics();
     void refetchSold();
     void refetchPool();
-    void refetchMintStatus();
     if (strategyPrincipal) {
       void refetchHoldings();
     }
-  }, [
-    refetchMetrics,
-    refetchSold,
-    refetchPool,
-    refetchMintStatus,
-    refetchHoldings,
-    strategyPrincipal,
-  ]);
-
-  useEffect(() => {
-    if (mintedOnChain) {
-      setHasMintedTokens(true);
-    } else if (!mintStatusLoading && !pendingMintTxId) {
-      setHasMintedTokens(false);
-    }
-  }, [mintedOnChain, mintStatusLoading, pendingMintTxId]);
-
-  useEffect(() => {
-    setPendingMintTxId(null);
-    setHasMintedTokens(false);
-  }, [strategyPrincipal]);
+  }, [refetchMetrics, refetchSold, refetchPool, refetchHoldings, strategyPrincipal]);
 
   const handleSwap = useCallback(async () => {
     if (!network) return;
@@ -351,324 +289,6 @@ export default function StrategyDashboard() {
     refreshAll,
     shouldUseDirectCall,
   ]);
-
-  const handleSendStx = useCallback(async () => {
-    if (!network) return;
-
-    if (!currentAddress) {
-      toast({
-        title: 'Connect wallet',
-        description: 'Please connect a wallet before sending STX.',
-        status: 'warning',
-      });
-      return;
-    }
-
-    const cleanedRecipient = sendRecipient.trim();
-    if (
-      !cleanedRecipient ||
-      (!cleanedRecipient.startsWith('ST') && !cleanedRecipient.startsWith('SP'))
-    ) {
-      toast({
-        title: 'Invalid recipient',
-        description: 'Enter a valid Stacks principal (ST/SP) to send STX.',
-        status: 'warning',
-      });
-      return;
-    }
-
-    if (sendAmountMicro <= 0) {
-      toast({
-        title: 'Invalid amount',
-        description: 'Enter a positive STX amount to transfer.',
-        status: 'warning',
-      });
-      return;
-    }
-
-    setIsSendingStx(true);
-    setPendingSendTxId(null);
-    try {
-      if (shouldUseDirectCall()) {
-        if (!currentWallet) {
-          throw new Error('Devnet wallet is not configured');
-        }
-        const { txid } = await executeStxTransfer(
-          {
-            recipient: cleanedRecipient,
-            amount: sendAmountMicro,
-          },
-          currentWallet
-        );
-        setPendingSendTxId(txid);
-        toast({
-          title: 'Transfer submitted',
-          description: `Broadcast STX transfer ${txid}`,
-          status: 'info',
-        });
-        setSendAmount('');
-        refreshAll();
-        return;
-      }
-
-      const response = await request('stx_transferStx', {
-        amount: sendAmountMicro.toString(),
-        recipient: cleanedRecipient,
-      });
-
-      // Handle successful response
-      if (response.txid) {
-        setPendingSendTxId(response.txid);
-        toast({
-          title: 'Transfer submitted',
-          description: 'STX transfer submitted to the Stacks network.',
-          status: 'success',
-        });
-        setSendAmount('');
-        setSendRecipient('');
-        refreshAll();
-      }
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: 'Transfer failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-      });
-    } finally {
-      setIsSendingStx(false);
-    }
-  }, [
-    network,
-    currentAddress,
-    sendRecipient,
-    sendAmountMicro,
-    shouldUseDirectCall,
-    currentWallet,
-    toast,
-    refreshAll,
-  ]);
-
-  const handleMintTokens = useCallback(async () => {
-    if (!network) return;
-
-    if (!currentAddress) {
-      toast({
-        title: 'Connect wallet',
-        description: 'Please connect a wallet before minting tokens.',
-        status: 'warning',
-      });
-      return;
-    }
-
-    setIsMinting(true);
-    setPendingMintTxId(null);
-
-    const txOptions = buildMintStrategyTokenTx(network);
-
-    try {
-      if (shouldUseDirectCall()) {
-        if (!currentWallet) {
-          throw new Error('Devnet wallet is not configured');
-        }
-        const { txid } = await executeContractCall(txOptions, currentWallet);
-        setPendingMintTxId(txid);
-        toast({
-          title: 'Mint submitted',
-          description: `Broadcast strategy mint transaction ${txid}`,
-          status: 'info',
-        });
-        setHasMintedTokens(true);
-        void refetchMintStatus();
-        refreshAll();
-        return;
-      }
-
-      await openContractCall({
-        ...txOptions,
-        onFinish: ({ txId }) => {
-          setPendingMintTxId(txId);
-          toast({
-            title: 'Mint submitted',
-            description: 'Mint transaction submitted to the Stacks network.',
-            status: 'success',
-          });
-          setHasMintedTokens(true);
-          void refetchMintStatus();
-          refreshAll();
-        },
-        onCancel: () => {
-          toast({
-            title: 'Transaction cancelled',
-            description: 'You cancelled the mint transaction.',
-            status: 'info',
-          });
-        },
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: 'Mint failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-      });
-    } finally {
-      setIsMinting(false);
-    }
-  }, [
-    network,
-    currentAddress,
-    shouldUseDirectCall,
-    currentWallet,
-    toast,
-    refreshAll,
-    refetchMintStatus,
-  ]);
-
-  const handleInitPool = useCallback(async () => {
-    if (!network) return;
-
-    if (!currentAddress) {
-      toast({
-        title: 'Connect wallet',
-        description: 'Please connect a wallet before initializing the pool.',
-        status: 'warning',
-      });
-      return;
-    }
-
-    if (poolInitialized) {
-      toast({
-        title: 'Pool already initialized',
-        description: 'The liquidity pool has already been initialized.',
-        status: 'info',
-      });
-      return;
-    }
-
-    setIsInitializingPool(true);
-    setPendingInitTxId(null);
-
-    const txOptions = buildInitLiquidityPoolTx(network);
-
-    try {
-      if (shouldUseDirectCall()) {
-        if (!currentWallet) {
-          throw new Error('Devnet wallet is not configured');
-        }
-        const { txid } = await executeContractCall(txOptions, currentWallet);
-        setPendingInitTxId(txid);
-        toast({
-          title: 'Init submitted',
-          description: `Broadcast pool init transaction ${txid}`,
-          status: 'info',
-        });
-        refreshAll();
-        return;
-      }
-
-      await openContractCall({
-        ...txOptions,
-        onFinish: ({ txId }) => {
-          setPendingInitTxId(txId);
-          toast({
-            title: 'Init submitted',
-            description: 'Liquidity pool initialization submitted to Stacks.',
-            status: 'success',
-          });
-          refreshAll();
-        },
-        onCancel: () => {
-          toast({
-            title: 'Transaction cancelled',
-            description: 'You cancelled the pool initialization.',
-            status: 'info',
-          });
-        },
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: 'Init failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-      });
-    } finally {
-      setIsInitializingPool(false);
-    }
-  }, [
-    network,
-    currentAddress,
-    poolInitialized,
-    shouldUseDirectCall,
-    currentWallet,
-    toast,
-    refreshAll,
-  ]);
-
-  const handleUpdateReserves = useCallback(async () => {
-    if (!network) return;
-
-    if (!currentAddress) {
-      toast({
-        title: 'Connect wallet',
-        description: 'Please connect a wallet before updating reserves.',
-        status: 'warning',
-      });
-      return;
-    }
-
-    setIsUpdatingReserves(true);
-    setPendingUpdateTxId(null);
-
-    const txOptions = buildUpdateReservesTx(network);
-
-    try {
-      if (shouldUseDirectCall()) {
-        if (!currentWallet) {
-          throw new Error('Devnet wallet is not configured');
-        }
-        const { txid } = await executeContractCall(txOptions, currentWallet);
-        setPendingUpdateTxId(txid);
-        toast({
-          title: 'Update submitted',
-          description: `Broadcast reserve update transaction ${txid}`,
-          status: 'info',
-        });
-        refreshAll();
-        return;
-      }
-
-      await openContractCall({
-        ...txOptions,
-        onFinish: ({ txId }) => {
-          setPendingUpdateTxId(txId);
-          toast({
-            title: 'Update submitted',
-            description: 'Reserve update submitted to the Stacks network.',
-            status: 'success',
-          });
-          refreshAll();
-        },
-        onCancel: () => {
-          toast({
-            title: 'Transaction cancelled',
-            description: 'You cancelled the reserve update.',
-            status: 'info',
-          });
-        },
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: 'Update failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-      });
-    } finally {
-      setIsUpdatingReserves(false);
-    }
-  }, [network, currentAddress, shouldUseDirectCall, currentWallet, toast, refreshAll]);
 
   const handleBuyFloor = useCallback(async () => {
     if (!network || !metrics?.floorListing) {
@@ -1073,142 +693,6 @@ export default function StrategyDashboard() {
           </CardBody>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <Heading size="md">Admin Utilities</Heading>
-          </CardHeader>
-          <Divider />
-          <CardBody>
-            <Stack spacing={6} divider={<Divider />}>
-              <Stack spacing={4}>
-                <Stack spacing={1}>
-                  <Heading size="sm">Send STX</Heading>
-                  <Text fontSize="sm" color="gray.600">
-                    Transfer STX from the connected wallet to fund the strategy or pay
-                    collaborators.
-                  </Text>
-                </Stack>
-                <FormControl>
-                  <FormLabel>Recipient Principal</FormLabel>
-                  <Input
-                    value={sendRecipient}
-                    onChange={(event) => setSendRecipient(event.target.value)}
-                    placeholder="STX or contract address"
-                  />
-                  <FormHelperText>Example: ST.... or SP.... principal.</FormHelperText>
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Amount (STX)</FormLabel>
-                  <NumberInput
-                    value={sendAmount}
-                    min={0}
-                    precision={6}
-                    step={0.1}
-                    clampValueOnBlur={false}
-                    onChange={(valueString) => setSendAmount(valueString)}
-                  >
-                    <NumberInputField placeholder="0.0 STX" />
-                  </NumberInput>
-                  <FormHelperText>
-                    {sendAmountMicro > 0
-                      ? `${(sendAmountMicro / MICROSTX_IN_STX).toFixed(6)} STX selected`
-                      : 'Specify the STX amount to transfer.'}
-                  </FormHelperText>
-                </FormControl>
-                <Button
-                  colorScheme="blue"
-                  onClick={handleSendStx}
-                  isDisabled={isSendDisabled}
-                  isLoading={isSendingStx}
-                >
-                  Send STX
-                </Button>
-                {pendingSendTxId && (
-                  <Link
-                    fontSize="sm"
-                    color="blue.500"
-                    href={getExplorerLink(pendingSendTxId, network)}
-                    isExternal
-                  >
-                    View transfer transaction <ExternalLinkIcon mx="4px" />
-                  </Link>
-                )}
-              </Stack>
-
-              <Stack spacing={4}>
-                <Stack spacing={1}>
-                  <Heading size="sm">Contract Maintenance</Heading>
-                  <Text fontSize="sm" color="gray.600">
-                    Bootstrap the strategy protocol once contracts are deployed.
-                  </Text>
-                </Stack>
-                <Stack direction={{ base: 'column', sm: 'row' }} spacing={3}>
-                  <Button
-                    colorScheme="purple"
-                    onClick={handleMintTokens}
-                    isDisabled={isMintDisabled}
-                    isLoading={isMinting}
-                  >
-                    Mint Strategy Tokens
-                  </Button>
-                  <Button
-                    colorScheme="teal"
-                    variant={poolInitialized ? 'outline' : 'solid'}
-                    onClick={handleInitPool}
-                    isDisabled={isInitDisabled}
-                    isLoading={isInitializingPool}
-                  >
-                    Init Liquidity Pool
-                  </Button>
-                  <Button
-                    colorScheme="orange"
-                    variant="outline"
-                    onClick={handleUpdateReserves}
-                    isDisabled={isUpdateReservesDisabled}
-                    isLoading={isUpdatingReserves}
-                  >
-                    Update Reserves
-                  </Button>
-                </Stack>
-                {pendingMintTxId && (
-                  <Link
-                    fontSize="sm"
-                    color="blue.500"
-                    href={getExplorerLink(pendingMintTxId, network)}
-                    isExternal
-                  >
-                    View mint transaction <ExternalLinkIcon mx="4px" />
-                  </Link>
-                )}
-                {pendingInitTxId && (
-                  <Link
-                    fontSize="sm"
-                    color="blue.500"
-                    href={getExplorerLink(pendingInitTxId, network)}
-                    isExternal
-                  >
-                    View init transaction <ExternalLinkIcon mx="4px" />
-                  </Link>
-                )}
-                {pendingUpdateTxId && (
-                  <Link
-                    fontSize="sm"
-                    color="blue.500"
-                    href={getExplorerLink(pendingUpdateTxId, network)}
-                    isExternal
-                  >
-                    View update transaction <ExternalLinkIcon mx="4px" />
-                  </Link>
-                )}
-                {poolInitialized && (
-                  <Text fontSize="xs" color="gray.500">
-                    Pool already initialized. Further calls will fail on-chain.
-                  </Text>
-                )}
-              </Stack>
-            </Stack>
-          </CardBody>
-        </Card>
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
           <Card>
             <CardHeader>
