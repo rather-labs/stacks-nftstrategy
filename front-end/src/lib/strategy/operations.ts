@@ -5,6 +5,9 @@ import {
   contractPrincipalCV,
   ClarityType,
   cvToValue,
+  Pc,
+  Cl,
+  PostCondition,
 } from '@stacks/transactions';
 import { ContractCallRegularOptions } from '@stacks/connect';
 import { Network } from '@/lib/network';
@@ -13,6 +16,7 @@ import {
   getNftContract,
   getStrategyContract,
   getStrategyPrincipal,
+  getMarketplaceContract,
 } from '@/constants/contracts';
 import {
   fetchListingNonce,
@@ -35,11 +39,33 @@ export interface SoldNft {
   eventIndex?: number;
 }
 
+const MAX_STX_SPEND = 1_000_000_000_000_000; // 1,000,000 STX (in microSTX)
+const MAX_RATHER_TRANSFER = 1_000_000_000_000; // Total RATHER supply minted
+
 export const buildBuyAndRelistTx = (
   network: Network,
-  listingId: number
+  listingId: number,
+  listingPrice: number,
+  tokenId: number
 ): ContractCallRegularOptions => {
   const strategyContract = getStrategyContract(network);
+  const marketplaceContract = getMarketplaceContract(network);
+  const nftContract = getNftContract(network);
+  const strategyPrincipal = getStrategyPrincipal(network);
+  const nftAssetId =
+    `${nftContract.contractAddress}.${nftContract.contractName}::${nftContract.contractName}` as `${string}.${string}::${string}`;
+
+  const stxSpend = Pc.principal(strategyPrincipal).willSendEq(listingPrice).ustx();
+  const relistTransfer = Pc.principal(strategyPrincipal)
+    .willSendAsset()
+    .nft(nftAssetId, Cl.uint(tokenId));
+
+  // Marketplace pulls the NFT into escrow before relisting; allow it to send the asset back to the taker.
+  const marketplaceReturn = Pc.principal(
+    `${marketplaceContract.contractAddress}.${marketplaceContract.contractName}`
+  )
+    .willSendAsset()
+    .nft(nftAssetId, Cl.uint(tokenId));
 
   return {
     anchorMode: AnchorMode.Any,
@@ -48,12 +74,46 @@ export const buildBuyAndRelistTx = (
     network,
     functionName: 'buy-and-relist-nft',
     functionArgs: [uintCV(listingId)],
+    postConditions: [stxSpend, relistTransfer, marketplaceReturn],
   };
 };
 
 export const buildBuyTokenAndBurnTx = (network: Network): ContractCallRegularOptions => {
   const strategyContract = getStrategyContract(network);
   const liquidityPool = getLiquidityPoolContract(network);
+  const strategyPrincipal = getStrategyPrincipal(network);
+  const poolPrincipal = `${liquidityPool.contractAddress}.${liquidityPool.contractName}`;
+  const ratherAssetId =
+    `${strategyContract.contractAddress}.${strategyContract.contractName}::rather-coin` as `${string}.${string}::${string}`;
+
+  const postConditions: PostCondition[] = [
+    {
+      type: 'stx-postcondition',
+      address: strategyPrincipal,
+      condition: 'lte',
+      amount: MAX_STX_SPEND,
+    },
+    {
+      type: 'stx-postcondition',
+      address: poolPrincipal,
+      condition: 'lte',
+      amount: MAX_STX_SPEND,
+    },
+    {
+      type: 'ft-postcondition',
+      address: poolPrincipal,
+      condition: 'lte',
+      asset: ratherAssetId,
+      amount: MAX_RATHER_TRANSFER,
+    },
+    {
+      type: 'ft-postcondition',
+      address: strategyPrincipal,
+      condition: 'lte',
+      asset: ratherAssetId,
+      amount: MAX_RATHER_TRANSFER,
+    },
+  ];
 
   return {
     anchorMode: AnchorMode.Any,
@@ -62,6 +122,7 @@ export const buildBuyTokenAndBurnTx = (network: Network): ContractCallRegularOpt
     network,
     functionName: 'buy-token-and-burn',
     functionArgs: [contractPrincipalCV(liquidityPool.contractAddress, liquidityPool.contractName)],
+    postConditions,
   };
 };
 

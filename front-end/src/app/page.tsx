@@ -690,7 +690,12 @@ export default function StrategyDashboard() {
     }
 
     setIsBuyingFloor(true);
-    const txOptions = buildBuyAndRelistTx(network, metrics.floorListing.id);
+    const txOptions = buildBuyAndRelistTx(
+      network,
+      metrics.floorListing.id,
+      metrics.floorListing.price,
+      metrics.floorListing.tokenId
+    );
 
     try {
       if (shouldUseDirectCall()) {
