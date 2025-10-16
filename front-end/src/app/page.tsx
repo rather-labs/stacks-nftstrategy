@@ -25,6 +25,7 @@ import {
   Text,
   useToast,
   VStack,
+  Progress,
 } from '@chakra-ui/react';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { useQuery } from '@tanstack/react-query';
@@ -268,6 +269,10 @@ export default function StrategyDashboard() {
     ? Math.max(metrics.stxBalance - metrics.feeBalance, 0) / MICROSTX_IN_STX
     : 0;
   const floorPriceStx = metrics?.floorListing ? metrics.floorListing.price / MICROSTX_IN_STX : null;
+  const purchaseProgress =
+    !metricsLoading && floorPriceStx && floorPriceStx > 0
+      ? Math.min((feeBalanceStx / floorPriceStx) * 100, 100)
+      : 0;
 
   return (
     <Container maxW="6xl" py={10}>
@@ -315,32 +320,53 @@ export default function StrategyDashboard() {
 
           <Card>
             <CardBody>
-              <Stat>
-                <StatLabel>Floor Listing</StatLabel>
-                <StatNumber>
-                  {metricsLoading
-                    ? '—'
-                    : floorPriceStx !== null
-                      ? `${floorPriceStx.toFixed(2)} STX`
-                      : 'No listings'}
-                </StatNumber>
-              </Stat>
-              {metrics?.floorListing && (
-                <Text mt={3} fontSize="sm" color="gray.600">
-                  Token #{metrics.floorListing.tokenId} by {metrics.floorListing.maker.slice(0, 6)}…
-                </Text>
-              )}
-              {pendingBuyTxId && (
-                <Link
-                  mt={3}
-                  fontSize="sm"
-                  color="blue.500"
-                  href={getExplorerLink(pendingBuyTxId, network)}
-                  isExternal
-                >
-                  View buy transaction <ExternalLinkIcon mx="4px" />
-                </Link>
-              )}
+              <Stack spacing={4}>
+                <Stat>
+                  <StatLabel>Floor Listing</StatLabel>
+                  <StatNumber>
+                    {metricsLoading
+                      ? '—'
+                      : floorPriceStx !== null
+                        ? `${floorPriceStx.toFixed(2)} STX`
+                        : 'No listings'}
+                  </StatNumber>
+                </Stat>
+                {metrics?.floorListing && (
+                  <Text fontSize="sm" color="gray.600">
+                    Token #{metrics.floorListing.tokenId} by{' '}
+                    {metrics.floorListing.maker.slice(0, 6)}…
+                  </Text>
+                )}
+                <Stack spacing={2}>
+                  <Text fontSize="sm" color="gray.600">
+                    Progress toward next floor purchase
+                  </Text>
+                  <Progress
+                    value={purchaseProgress}
+                    colorScheme="purple"
+                    size="sm"
+                    borderRadius="full"
+                    isIndeterminate={metricsLoading}
+                  />
+                  <Text fontSize="xs" color="gray.500">
+                    {metricsLoading
+                      ? 'Calculating progress…'
+                      : floorPriceStx
+                        ? `${purchaseProgress.toFixed(0)}% of ${floorPriceStx.toFixed(2)} STX target`
+                        : 'No active marketplace listing detected.'}
+                  </Text>
+                </Stack>
+                {pendingBuyTxId && (
+                  <Link
+                    fontSize="sm"
+                    color="blue.500"
+                    href={getExplorerLink(pendingBuyTxId, network)}
+                    isExternal
+                  >
+                    View buy transaction <ExternalLinkIcon mx="4px" />
+                  </Link>
+                )}
+              </Stack>
             </CardBody>
           </Card>
 
