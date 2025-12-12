@@ -1,5 +1,6 @@
 ![Rather Labs](./front-end/public/images/rather-white.svg#gh-dark-mode-only)
 ![Rather Labs](./front-end/public/images/rather-dark.svg#gh-light-mode-only)
+
 # Rather Strategy Monorepo
 
 Full-stack reference implementation of the “Rather Strategy Protocol” on Stacks. The repository bundles:
@@ -104,3 +105,8 @@ Visit http://localhost:3000. Switch between devnet/testnet in the navbar and con
 - [Stacks Explorer](https://explorer.hiro.so/)
 
 See the per-package READMEs for deeper details and architecture diagrams.
+
+## Administrative
+
+- Stacks Hacker House 2025
+- DocuSign Envelope ID: EFC4C849-C0F9-499E-94AD-9633D0C3B3BE
