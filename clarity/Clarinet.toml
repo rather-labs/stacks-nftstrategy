@@ -17,18 +17,22 @@ path = "contracts/traits/liquidity-pool-trait.clar"
 [contracts.strategy-token]
 path = "contracts/strategy-token.clar"
 epoch = "latest"
+clarity_version = 2
 
 [contracts.liquidity-pool]
 path = "contracts/liquidity-pool.clar"
 epoch = "latest"
+clarity_version = 2
 
 [contracts.funny-dog]
 path = "contracts/funny-dog.clar"
 epoch = "latest"
+clarity_version = 2
 
 [contracts.nft-marketplace]
 path = 'contracts/nft-marketplace.clar'
 epoch = "latest"
+clarity_version = 2
 
 [repl.analysis]
 passes = []
